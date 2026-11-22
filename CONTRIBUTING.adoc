@@ -1,0 +1,213 @@
+= Contributing to Abstraction4j
+:toc: macro
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+
+Thanks for your interest in *Abstraction4j*!
+We want contributing to be as easy and transparent as possible.
+These are the guidelines we ask contributors to follow.
+
+toc::[]
+
+== Questions
+
+Start with the link:README.adoc[README], which covers setup, usage and known limitations.
+
+IMPORTANT: Before opening a new issue, search the https://github.com/abstraction4j/abstraction4j-router/issues[GitHub Issues].
+Someone may already have asked the same question or found a solution.
+
+== Bugs
+
+If you find a bug or unexpected behavior, open an issue on https://github.com/abstraction4j/abstraction4j-router/issues[GitHub Issues]
+and fill in the link:.github/ISSUE_TEMPLATE.md[issue template].
+
+* Use a clear, descriptive title.
+* Include the Abstraction4j, Java and (if relevant) Spring / Spring Boot versions.
+* Describe what you expected to happen, what happened instead, and why.
+* Format logs, configuration and code snippets as code blocks.
+
+Before we fix a bug we need to reproduce it.
+Please include a minimal reproduction as a JUnit test.
+It lets us confirm the bug quickly (or point out a usage problem) and makes sure we fix the right thing.
+
+== New features
+
+Propose a new feature by opening an issue.
+
+CAUTION: Please open an issue describing your idea _before_ starting a pull request,
+so we can agree that the change fits the project before you invest time in it.
+
+For larger features, outline the design in the issue so it can be discussed.
+This helps coordinate work, avoids duplicated effort, and makes it more likely the change is accepted.
+
+== Pull requests
+
+We use https://docs.github.com/en/get-started/using-github/github-flow[GitHub Flow].
+
+. Fork the repository and create a branch from `main`.
+. Make your change, with tests (see <<Tests>>).
+. Run `./gradlew format`, then `./gradlew build`, and make sure it passes.
+. Keep public APIs backward compatible where possible, and document public classes and methods with Javadoc.
+. Follow the <<Code style>>.
+. Use the commit message format `Issue #123: Short description of the change`.
+. Open the pull request and take part in the code review.
+. If you changed public API or behavior, update link:README.adoc[README.adoc] in the same pull request.
+
+== Building
+
+Requirements:
+
+* Java 21 or later
+* No local Gradle installation is needed; use the wrapper.
+
+[source,shell]
+----
+./gradlew format                                  # apply Spring Java Format to all sources
+./gradlew build                                   # check formatting, compile, test and package all modules
+./gradlew :abstraction4j-router-spring:test        # test a single module
+./gradlew publishToMavenLocal                     # install snapshots into ~/.m2
+./gradlew :abstraction4j-router-benchmarks:jmh     # run the JMH benchmarks
+----
+
+`build` also:
+
+* fails if a library module's coverage drops below 90% of lines or 80% of branches (the aggregated JaCoCo report is in `build/reports/jacoco/testCodeCoverageReport/`);
+* compares the public and protected API with the release named by `apiBaselineVersion` in `gradle.properties`, and fails on incompatible changes (report in `<module>/build/reports/japicmp/`).
+A deliberate breaking change needs a new minor version before 1.0, or a new major version after it, and a note in link:RELEASE_NOTES.adoc[RELEASE_NOTES.adoc].
+
+To test against other Spring versions, override them on the command line, as the `minimum-spring` CI job does:
+
+[source,shell]
+----
+./gradlew build -PspringFrameworkVersion=7.0.1 -PspringBootVersion=4.0.0
+----
+
+=== Project layout
+
+[cols="1,3",options="header"]
+|===
+|Module |Contents
+
+|`abstraction4j-router-core`
+|The `ImplementationFinder` API. Must stay free of framework dependencies.
+
+|`abstraction4j-router-jdk`
+|Router built on `java.lang.reflect.Proxy`. Depends only on `core`.
+
+|`abstraction4j-router-spring`
+|Router built on Spring AOP. Spring is a `compileOnly` dependency.
+
+|`abstraction4j-router-spring-autoconfigure`
+|Spring Boot auto-configuration and `@EnableSpringAbstraction`, in `dev.abstraction4j.router.spring.autoconfigure`.
+
+|`samples/jdk`, `samples/spring-boot`
+|Runnable samples (`abstraction4j-router-sample-*`). Built, formatted and checked like the library, but never published. Keep them working when the API changes.
+
+|`benchmarks`
+|JMH benchmarks (`abstraction4j-router-benchmarks`). Compiled and checked by `build` but only run on demand. Never published.
+
+|`integration-tests/module-path`
+|Modular Spring Boot application run from the module path by `check` (`abstraction4j-router-it-module-path`). Fails the build if a router can't be used from a named module.
+
+|`integration-tests/native-image`
+|Spring Boot application built as a GraalVM native image (`abstraction4j-router-it-native-image`). Needs GraalVM, so `build` only compiles it; CI runs `./gradlew :abstraction4j-router-it-native-image:nativeRun`. Run it locally with `GRAALVM_HOME` set if you change routers, hints or AOT support.
+|===
+
+Dependency versions live in link:gradle/libs.versions.toml[gradle/libs.versions.toml].
+The Spring modules target Spring Framework 7 and Spring Boot 4.
+Framework dependencies should be `compileOnly` so the library doesn't dictate versions to applications.
+
+=== Public API
+
+Each module exposes as little as possible: `ImplementationFinder`, `RoutingImplementationFinder` and `@RoutingKey` in `core`, `JdkAbstractionRouters` in `jdk`, `SpringAbstractionRouters` in `spring`, and `AbstractionRouterAutoConfiguration`, `@EnableSpringAbstraction` and `@DisableRouter` in `spring-autoconfigure`.
+Everything else (handlers, registrars, post-processors) is package-private.
+Keep new types package-private unless users need them, because every public type is a compatibility commitment.
+Behavior changes must be reflected in the _Behavior_ section of link:README.adoc[README.adoc].
+
+IMPORTANT: Each module must use its own packages.
+Two modules must never share a package (for example, `dev.abstraction4j.router.spring`), because split packages break the Java module system.
+
+== Code style
+
+* Java code follows the https://github.com/spring-io/spring-javaformat[Spring Java Format] style (tab indentation), enforced by the build.
+Run `./gradlew format` to apply it; `./gradlew build` fails on unformatted code via the `checkFormat` task.
+IDE plugins for IntelliJ IDEA and Eclipse are available from the same project, but the Gradle build is the source of truth.
+* https://checkstyle.org/[Checkstyle] runs Spring's rule set (`spring-javaformat-checkstyle`) as part of `./gradlew build`.
+The configuration lives in link:src/config/checkstyle[src/config/checkstyle]; add project-specific exceptions to `checkstyle-suppressions.xml`, not inline.
+Rules that most often catch new contributors:
+** Every Java file starts with the Apache 2.0 license header (copy it from any existing file).
+** Fields are always accessed through `this.`.
+** Lambda parameters are always in parentheses: `(context) -> ...`.
+** Ternary conditions are in parentheses: `(value != null) ? value : other`.
+** Imports are grouped `java.*`/`javax.*`, then third-party, then `dev.abstraction4j.*`, with static imports last.
+** Caught exceptions are named `ex`.
+* Every package has a `package-info.java` annotated with JSpecify's `@NullMarked`.
+Mark anything that can be `null` with `@Nullable`.
+* Public classes and methods need Javadoc with `@since` set to the version that introduces them.
+* Prefer small, focused classes and follow https://gist.github.com/wojteklu/73c6914cc446146b8b533c0988cf8d29[Clean Code] principles.
+
+== Tests
+
+We use https://junit.org/[JUnit 5], https://assertj.github.io/doc/[AssertJ] and https://site.mockito.org/[Mockito], with static imports.
+
+* Test classes are package-private and named `*Tests` (for example, `JdkAbstractionRoutersTests`).
+* Stub with BDDMockito (`given(...)`, `willReturn(...)`, `willThrow(...)`); Checkstyle rejects `Mockito.when` and `doThrow`.
+
+* Structure tests as _Arrange / Act / Assert_ and keep the _Act_ step as small as possible.
+* Separate the sections with a blank line rather than `// Given`, `// When`, `// Then` comments.
+Extract a private helper method if the setup gets long.
+* Name tests `subject_scenario`, for example `finderReturningNull_throwsIllegalStateException`.
+* Test Spring wiring with `ApplicationContextRunner` instead of a full `@SpringBootTest`.
+It's faster and makes the configuration under test explicit.
+* New code should come with tests that cover its branches. Check the JaCoCo report after `./gradlew build`.
+* If a change touches the call path (handlers or finders), run the JMH benchmarks before and after and include the numbers in the pull request.
+Pass JMH options with `--args`, for example `--args="RouterBenchmarks.jdk -t 4"` to run only the JDK benchmarks on four threads.
+
+[source,java,title='Example test structure and conventions']
+----
+@Test
+void finderReturningNull_throwsIllegalStateException() {
+	ImplementationFinder<ShipperService> finder = (method, args) -> null;
+	ShipperService shipperService =
+			JdkAbstractionRouters.routerFor(ShipperService.class, finder);
+
+	Throwable thrown = catchThrowable(() -> shipperService.ship("ups", "1 Main St"));
+
+	assertThat(thrown)
+			.isInstanceOf(IllegalStateException.class)
+			.hasMessageStartingWith("Unable to find implementation for method:");
+}
+----
+
+[source,java,title='Example Spring wiring test']
+----
+private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+		.withConfiguration(AutoConfigurations.of(AbstractionRouterAutoConfiguration.class));
+
+@Test
+void autoConfiguration_registersRouterForFinder() {
+	contextRunner
+			.withUserConfiguration(ShipperConfiguration.class)
+			.run((context) -> {
+				assertThat(context).hasNotFailed();
+				assertThat(context).hasBean("shipperServiceFinderRouter");
+			});
+}
+----
+
+== License
+
+By contributing, you agree that your contributions will be licensed under the
+link:LICENSE.txt[Apache License, Version 2.0].
+
+== References
+
+These guidelines are adapted from the contribution guidelines of
+https://github.com/resilience4j/resilience4j/blob/master/CONTRIBUTING.adoc[Resilience4j],
+https://github.com/facebook/draft-js/blob/a9316a723f9e918afde44dea68b5f9f39b7d9b00/CONTRIBUTING.md[Facebook's Draft]
+and https://github.com/angular/angular/blob/main/CONTRIBUTING.md[Angular].

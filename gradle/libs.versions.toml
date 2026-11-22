@@ -1,0 +1,43 @@
+[versions]
+spring = "7.0.10"
+spring-boot = "4.1.2"
+jmh = "1.37"
+
+[plugins]
+nexus-publish = { id = "io.github.gradle-nexus.publish-plugin", version = "2.0.0" }
+spring-javaformat = { id = "io.spring.javaformat", version = "0.0.48" }
+cyclonedx = { id = "org.cyclonedx.bom", version = "3.5.1" }
+graalvm-native = { id = "org.graalvm.buildtools.native", version = "1.1.9" }
+japicmp = { id = "me.champeau.gradle.japicmp", version = "0.4.6" }
+sonarqube = { id = "org.sonarqube", version = "7.5.0.8588" }
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+
+[libraries]
+# Build tooling
+checkstyle = { module = "com.puppycrawl.tools:checkstyle", version = "10.26.1" }
+spring-javaformat-checkstyle = { module = "io.spring.javaformat:spring-javaformat-checkstyle", version = "0.0.48" }
+
+# Benchmarks
+jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
+jmh-generator-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
+
+# Nullability annotations
+jspecify = { module = "org.jspecify:jspecify", version = "1.0.1" }
+
+# Spring
+spring-context = { module = "org.springframework:spring-context", version.ref = "spring" }
+spring-core-test = { module = "org.springframework:spring-core-test", version.ref = "spring" }
+spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter", version.ref = "spring-boot" }
+spring-boot-autoconfigure = { module = "org.springframework.boot:spring-boot-autoconfigure", version.ref = "spring-boot" }
+spring-boot-test = { module = "org.springframework.boot:spring-boot-starter-test", version.ref = "spring-boot" }
+
+# Testing
+assertj-core = { module = "org.assertj:assertj-core", version = "3.18.1" }
+mockito-core = { module = "org.mockito:mockito-core", version = "5.16.1" }
+mockito-junit-jupiter = { module = "org.mockito:mockito-junit-jupiter", version = "5.16.1" }
+junit-bom = { module = "org.junit:junit-bom", version = "6.0.3" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+
+[bundles]
+testing = ["assertj-core", "mockito-core", "mockito-junit-jupiter", "junit-jupiter"]

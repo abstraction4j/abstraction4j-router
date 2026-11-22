@@ -1,0 +1,29 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+buildCache {
+    local { enabled = true }
+}
+
+rootProject.name = "abstraction4j-router"
+include("abstraction4j-router-core")
+include("abstraction4j-router-jdk")
+include("abstraction4j-router-spring")
+include("abstraction4j-router-spring-autoconfigure")
+
+include("abstraction4j-router-sample-jdk")
+project(":abstraction4j-router-sample-jdk").projectDir = file("samples/jdk")
+include("abstraction4j-router-sample-spring-boot")
+project(":abstraction4j-router-sample-spring-boot").projectDir = file("samples/spring-boot")
+
+include("abstraction4j-router-benchmarks")
+project(":abstraction4j-router-benchmarks").projectDir = file("benchmarks")
+
+include("abstraction4j-router-it-module-path")
+project(":abstraction4j-router-it-module-path").projectDir = file("integration-tests/module-path")
+include("abstraction4j-router-it-native-image")
+project(":abstraction4j-router-it-native-image").projectDir = file("integration-tests/native-image")

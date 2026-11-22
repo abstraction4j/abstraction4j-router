@@ -1,0 +1,572 @@
+= Abstraction4j Router
+:author: Joe Chambers
+:icons: font
+:toc: macro
+:toclevels: 2
+:numbered:
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+
+image:https://img.shields.io/badge/license-ASF2-blue.svg["Apache License 2",link="https://www.apache.org/licenses/LICENSE-2.0.txt"]
+
+Abstraction4j Router keeps "which implementation should handle this call?" logic out of your business code.
+You describe the abstraction as an interface, write one implementation per variant, and supply a small _finder_ that picks the right implementation for each call.
+The library generates a router for the interface, a dynamic proxy that does the routing at runtime.
+
+toc::[]
+
+== Why
+
+Code that has to deal with several variants of the same capability (carriers, payment providers, API versions, tenants) tends to end up looking like this:
+
+[source,java]
+----
+public void processOrder(Order order) {
+  // ...
+
+  if (customer.useUps()) {
+    upsClient.ship(toUpsShipment(shipment), toUpsAddress(shipTo), toUpsAddress(shipFrom));
+  }
+  else if (customer.useFedex()) {
+    fedexClient.ship(toFedexShipment(shipment), toFedexAddress(shipTo), toFedexAddress(shipFrom));
+  }
+  else {
+    uspsClient.ship(toUspsShipment(shipment), toUspsAddress(shipTo), toUspsAddress(shipFrom));
+  }
+
+  // ...
+}
+----
+
+The routing obscures what the method actually does, and the same `if/else` chain gets copied wherever the capability is used.
+With Abstraction4j Router the business code depends only on the abstraction:
+
+[source,java]
+----
+public void processOrder(Order order) {
+  // ...
+  shipperService.ship(customer, shipment, shipTo, shipFrom);
+  // ...
+}
+----
+
+== How it works
+
+You provide three things:
+
+. An *interface* describing the abstraction.
+. One *implementation* per variant.
+. An `ImplementationFinder<T>` that picks the implementation for each call.
+
+[source,java]
+----
+public interface ShipperService {
+  void ship(Customer customer, Shipment shipment, Address shipTo, Address shipFrom);
+}
+
+public class UpsShipperService implements ShipperService {
+
+  private final UpsClient upsClient;
+
+  public UpsShipperService(UpsClient upsClient) {
+    this.upsClient = upsClient;
+  }
+
+  @Override
+  public void ship(Customer customer, Shipment shipment, Address shipTo, Address shipFrom) {
+    upsClient.ship(toUpsShipment(shipment), toUpsAddress(shipTo), toUpsAddress(shipFrom));
+  }
+
+  // toUpsShipment / toUpsAddress mapping omitted
+}
+
+// FedexShipperService and UspsShipperService follow the same pattern.
+----
+
+=== Typed routing
+
+Most finders route on one argument of the call.
+`RoutingImplementationFinder` does that without touching `Method` or `Object[]`: name the argument type, derive a key from it, and map keys to implementations.
+
+[source,java]
+----
+ImplementationFinder<ShipperService> finder = RoutingImplementationFinder.builder(ShipperService.class)
+    .byArgument(Customer.class, Customer::carrier)   // first parameter of type Customer
+    .route(Carrier.UPS, upsShipperService)
+    .route(Carrier.FEDEX, fedexShipperService)
+    .otherwise(uspsShipperService)                   // optional default
+    .build();
+----
+
+For each call, the finder uses the first parameter whose declared type is assignable to the routing type (`Customer`, or a subclass).
+The default implementation is used when the method has no such parameter, the argument or key is `null`, or no route matches the key.
+Without a default, those calls fail as described in <<Behavior>>.
+Registering the same key twice, or an implementation that doesn't implement the interface, throws `IllegalArgumentException`.
+
+==== Several key sources
+
+When the key can come from more than one place, chain key sources with `or()`.
+They are tried in order, and `otherwise(...)` stays the final fallback:
+
+[source,java]
+----
+ImplementationFinder<ShipperService> finder = RoutingImplementationFinder.builder(ShipperService.class)
+    .byArgument(Customer.class, Customer::carrier)   // 1. a Customer parameter
+    .or().byArgument(Order.class, Order::carrier)    // 2. else an Order parameter
+    .or().byContext(() -> carrierFromMdc())          // 3. else the current context
+    .route(Carrier.UPS, upsShipperService)
+    .route(Carrier.FEDEX, fedexShipperService)
+    .otherwise(uspsShipperService)                   // 4. else the default
+    .build();
+
+static @Nullable Carrier carrierFromMdc() {
+    String carrier = MDC.get("carrier");
+    return (carrier != null) ? Carrier.valueOf(carrier) : null;
+}
+----
+
+* A source that yields no key passes on to the next one. That happens when the method has no such parameter, the argument is `null`, or the extractor or supplier returns `null`.
+* The first key found decides the call. If that key has no route, the default is used and later sources are _not_ tried, so an unknown carrier on a `Customer` never falls through to the MDC.
+* All sources produce the same key type, so each route is declared once; the compiler checks this.
+* `byContext(...)` can also be the first, or only, source: `builder(ShipperService.class).byContext(() -> carrierFromMdc())`.
+* Context suppliers run on the thread that calls the router. Thread-bound context such as the SLF4J MDC is empty on other threads (`@Async`, executors, Reactor) unless you propagate it, and the call then falls through to the next source or the default.
+* Exceptions thrown by an extractor or supplier propagate to the caller.
+
+==== Routing keys
+
+`byArgument` matches parameters by type only, so with several `String` or `UUID` parameters it takes the first one, which may not be the one you mean.
+Mark the right parameter on the interface with `@RoutingKey` and use `byRoutingKey`, which ignores unannotated parameters:
+
+[source,java]
+----
+interface OrderService {
+
+    Order placeOrder(Customer customer, Cart cart);
+
+    List<Order> getOrders(@RoutingKey String customerId);
+
+    Order getOrder(String orderId, @RoutingKey UUID customerId);
+
+}
+
+Function<String, Oms> omsForCustomer = (customerId) -> flags
+    .getBooleanValue("oracle-oms", false, new ImmutableContext(customerId)) ? Oms.ORACLE : Oms.PEOPLESOFT;
+
+RoutingImplementationFinder.builder(OrderService.class)
+    .byArgument(Customer.class, (customer) -> omsForCustomer.apply(customer.id()))
+    .or().byRoutingKey(String.class, omsForCustomer)
+    .or().byRoutingKey(UUID.class, (customerId) -> omsForCustomer.apply(customerId.toString()))
+    .route(Oms.ORACLE, oracleOrderService)
+    .route(Oms.PEOPLESOFT, peopleSoftOrderService)
+    .otherwise(peopleSoftOrderService)
+    .build();
+----
+
+* Annotate the parameter on the routed interface. The router sees the interface's method, so an annotation on the implementation is ignored.
+* For methods with several routing keys, name them: `@RoutingKey("customer")` is matched by `byRoutingKey("customer", UUID.class, ...)`. An unnamed `byRoutingKey(type, ...)` only matches unnamed `@RoutingKey` parameters, so names never collide.
+* `byArgument` is unchanged and still matches by type alone; the two can be chained in any order.
+
+==== Conditional routes and feature flags
+
+A route can pick its implementation at call time, for example from a feature flag.
+Start the route with `route(key)`, add conditions with `and(...)`, and finish it with `orElse(...)`:
+
+[source,java]
+----
+ImplementationFinder<ShipperService> finder = RoutingImplementationFinder.builder(ShipperService.class)
+    .byArgument(Customer.class, Customer::carrier)
+    .route(Carrier.UPS)
+        .and(() -> flags.isEnabled("ups-v2")).to(upsShipperServiceV2)                        // global flag
+        .and(Customer.class, (customer) -> beta.contains(customer.tenantId())).to(upsBeta)  // per tenant
+        .orElse(upsShipperServiceV1)
+    .route(Carrier.FEDEX, fedexShipperService)
+    .otherwise(uspsShipperService)
+    .build();
+----
+
+* Conditions are only checked when the call's key matches the route, in the order they were added, and the first one that holds wins. When none holds, the route's `orElse(...)` implementation is used, never the finder's `otherwise(...)`.
+* `and(BooleanSupplier)` is for conditions that don't depend on the call, such as a global flag.
+* `and(Class, Predicate)` tests the first argument of that type, for example the customer's tenant. It doesn't hold when the call has no such argument, or the argument is `null`.
+* `andRoutingKey(Class, Predicate)` and `andRoutingKey(name, Class, Predicate)` test a parameter marked with `@RoutingKey` (see <<Routing keys>>), for when the type alone is ambiguous. For example, with `getOrders(@RoutingKey String customerId, @RoutingKey("tenant") String tenantId)`:
++
+[source,java]
+----
+.route(Oms.PEOPLESOFT)
+    .andRoutingKey("tenant", String.class, (tenantId) -> flags.isEnabled("oracle-oms", tenantId)).to(oracleOrderService)
+    .orElse(peopleSoftOrderService)
+----
+* Conditions are evaluated on every call, so flipping a flag takes effect on the next call without a restart. If a flag can flip in the middle of a request and every call in it must go the same way, decide once per request (for example, store the variant in the MDC) and route from that.
+* Keep conditions cheap and make them not throw. An exception in a condition fails the call; return `false` when the flag service is unavailable.
+* `route(key, implementation)` is shorthand for a route without conditions.
+
+=== Custom finders
+
+For any other rule, implement `ImplementationFinder` directly.
+It receives the invoked interface method and its arguments:
+
+[source,java]
+----
+ImplementationFinder<ShipperService> finder = (method, args) ->
+    method.getName().startsWith("track") ? trackingService : shippingService;
+----
+
+== Requirements
+
+* Java 21+
+* Spring Framework 7.0.1+ for `abstraction4j-router-spring`, and Spring Boot 4.0+ for `abstraction4j-router-spring-autoconfigure`
+
+Spring is not a transitive dependency; your application's Spring version is used.
+CI tests the oldest supported versions (Spring Framework 7.0.1, Spring Boot 4.0.0) and the versions in `gradle/libs.versions.toml`.
+
+== Modules
+
+All modules use the group `dev.abstraction4j.router`.
+
+[cols="1,3",options="header"]
+|===
+|Artifact |Public API
+
+|`abstraction4j-router-core`
+|`ImplementationFinder<T>`, `RoutingImplementationFinder<T>` and `@RoutingKey`. No dependencies beyond JSpecify annotations.
+
+|`abstraction4j-router-jdk`
+|`JdkAbstractionRouters`, which creates routers with `java.lang.reflect.Proxy`. No framework required.
+
+|`abstraction4j-router-spring`
+|`SpringAbstractionRouters`, which creates routers with Spring AOP. You register the router bean yourself.
+
+|`abstraction4j-router-spring-autoconfigure`
+|Spring Boot auto-configuration that registers a router bean for every `ImplementationFinder` bean, plus `@EnableSpringAbstraction` and `@DisableRouter`.
+|===
+
+Everything else is internal and may change without notice.
+=== Installation
+
+The library is not yet published to Maven Central; until it is, build it locally with `./gradlew publishToMavenLocal`.
+Pick the module that matches your setup, for example the Spring Boot auto-configuration:
+
+[source,xml]
+----
+<dependency>
+  <groupId>dev.abstraction4j.router</groupId>
+  <artifactId>abstraction4j-router-spring-autoconfigure</artifactId>
+  <version>0.1.0</version>
+</dependency>
+----
+
+[source,groovy]
+----
+implementation("dev.abstraction4j.router:abstraction4j-router-spring-autoconfigure:0.1.0")
+----
+
+For plain Java, use `abstraction4j-router-jdk` instead.
+
+== Usage
+
+=== Plain Java
+
+[source,java]
+----
+ShipperService shipperService = JdkAbstractionRouters.routerFor(ShipperService.class, finder);
+----
+
+The router's proxy class is defined in the interface's class loader; an overload accepts an explicit `ClassLoader`.
+
+=== Spring, manual registration
+
+[source,java]
+----
+@Configuration
+class ShippingConfiguration {
+
+  @Bean
+  @Primary
+  ShipperService shipperService(ImplementationFinder<ShipperService> shipperServiceFinder) {
+    return SpringAbstractionRouters.routerFor(ShipperService.class, shipperServiceFinder);
+  }
+}
+----
+
+=== Spring Boot, automatic registration
+
+Add `abstraction4j-router-spring-autoconfigure` to the classpath and declare your finder as a bean.
+Nothing else is required:
+
+[source,java]
+----
+@Configuration
+class ShippingConfiguration {
+
+  @Bean
+  RoutingImplementationFinder<ShipperService> shipperServiceFinder(UpsShipperService ups,
+      FedexShipperService fedex, UspsShipperService usps) {
+    return RoutingImplementationFinder.builder(ShipperService.class)
+        .byArgument(Customer.class, Customer::carrier)
+        .route(Carrier.UPS, ups)
+        .route(Carrier.FEDEX, fedex)
+        .otherwise(usps)
+        .build();
+  }
+}
+
+@Service
+class OrderService {
+
+  private final ShipperService shipperService; // receives the router
+
+  OrderService(ShipperService shipperService) {
+    this.shipperService = shipperService;
+  }
+}
+----
+
+For each `ImplementationFinder<T>` bean whose `T` is an interface, a router bean named `<finderBeanName>Router` is registered as `@Primary`, so plain `T` injection points receive the router.
+Finders declared in classes and in `@Bean` methods (including component-scanned configuration) are both detected.
+
+To turn the auto-configuration off, set:
+
+[source,properties]
+----
+abstraction4j.router.enabled=false
+----
+
+=== Spring without Boot
+
+Without Spring Boot, auto-configuration doesn't run.
+Add `@EnableSpringAbstraction` (`dev.abstraction4j.router.spring.autoconfigure`) to a configuration class instead; it registers the same routers:
+
+[source,java]
+----
+@Configuration
+@EnableSpringAbstraction
+class AppConfiguration {
+}
+----
+
+=== Excluding a finder
+
+Annotate a finder class, or the `@Bean` method that declares it, with `@DisableRouter` to keep it from getting a router:
+
+[source,java]
+----
+@Bean
+@DisableRouter
+ImplementationFinder<ShipperService> legacyShipperServiceFinder() {
+  ...
+}
+----
+
+=== Writing finders for automatic registration
+
+These rules apply to both the auto-configuration and `@EnableSpringAbstraction`.
+
+[IMPORTANT]
+.Inject implementations into a finder by concrete type or qualifier
+====
+Because the router is `@Primary`, a finder that asks for an unqualified `ShipperService` is handed the router, and the router depends on the finder, so the context fails with a circular reference.
+Inject the implementations by their concrete types (as above) or use `@Qualifier`:
+
+[source,java]
+----
+@Bean
+ImplementationFinder<ShipperService> shipperServiceFinder(
+    @Qualifier("ups") ShipperService ups,
+    @Qualifier("fedex") ShipperService fedex) {
+  return (method, args) -> "fedex".equals(args[0]) ? fedex : ups;
+}
+----
+====
+
+[NOTE]
+A `@Bean` method must declare the generic return type (`ImplementationFinder<ShipperService>` or `RoutingImplementationFinder<ShipperService>`, not a raw type) so the target interface can be determined.
+
+== Samples
+
+Two runnable samples live in link:samples[samples].
+Both use the shipping example from this README: customers who use different carriers place orders through an `OrderService` that only knows about `ShipperService`.
+
+[cols="1,2,2",options="header"]
+|===
+|Sample |Shows |Run it
+
+|link:samples/jdk[samples/jdk]
+|Plain Java: builds a `RoutingImplementationFinder` and a router with `JdkAbstractionRouters`.
+|`./gradlew :abstraction4j-router-sample-jdk:run`
+
+|link:samples/spring-boot[samples/spring-boot]
+|Spring Boot: declares the finder as a `@Bean`; the auto-configuration registers the router and `OrderService` receives it by constructor injection.
+|`./gradlew :abstraction4j-router-sample-spring-boot:run`
+|===
+
+Both print:
+
+----
+UPS is shipping 2 boxes for Alice
+FedEx is shipping 2 boxes for Bob
+USPS is shipping 2 boxes for Carol
+----
+
+== Behavior
+
+Both router types follow the same contract.
+
+Routing::
+Every call asks the finder once for an implementation, then invokes the same method, with the same arguments, on that implementation.
+This includes default interface methods; the implementation's override, or the default, runs as usual.
+
+Arguments::
+The finder always receives a non-`null` argument array; it is empty for methods without parameters.
+
+No implementation::
+If the finder returns `null`, the call fails with an `IllegalStateException` whose message names the method.
+
+Exceptions::
+Exceptions thrown by the implementation reach the caller unchanged, not wrapped in `InvocationTargetException`.
+Exceptions thrown by the finder also propagate unchanged.
+
+Object methods::
+`equals`, `hashCode` and `toString` never reach the finder.
+`toString` describes the router and its finder.
+JDK-based routers compare by identity (`equals` is `==`, `hashCode` is the identity hash code); Spring-based routers use Spring AOP's proxy equality.
+
+Thread safety::
+Routers are thread-safe, and the finder may be called concurrently from many threads, so it must be thread-safe too.
+`RoutingImplementationFinder` is immutable and thread-safe, provided its key extractors and suppliers are.
+
+Visibility::
+Interfaces don't need to be public; package-private interfaces, and implementations in other packages, work.
+
+Invalid types::
+Passing a class instead of an interface to `routerFor` throws `IllegalArgumentException`.
+
+== Performance and caching
+
+Each call on a router costs one finder call plus one reflective method invocation.
+On a typical laptop that adds roughly 20 to 30 ns per call for the JDK router and 40 to 55 ns for the Spring router, compared with calling the implementation directly.
+Measure on your own hardware with the JMH benchmarks in `benchmarks/` (see <<Building>>).
+
+`RoutingImplementationFinder` keeps that cheap on its own.
+It works out which parameter to route on once per method and caches it, so each later call only derives the key and looks it up in a hash map.
+
+The router does not cache the finder's _result_ across calls, on purpose.
+The right implementation usually depends on the arguments, so an implementation chosen for one call can be wrong for the next.
+
+If deciding the route is expensive, for example a database or remote lookup, cache inside the finder, keyed by the value that actually determines the route:
+
+[source,java]
+----
+Cache<Long, Carrier> carriers = Caffeine.newBuilder()       // or any bounded, expiring cache
+    .maximumSize(10_000)
+    .expireAfterWrite(Duration.ofMinutes(10))
+    .build();
+
+RoutingImplementationFinder.builder(ShipperService.class)
+    .byArgument(Customer.class, (customer) -> carriers.get(customer.id(), carrierService::carrierFor))
+    .route(Carrier.UPS, ups)
+    .route(Carrier.FEDEX, fedex)
+    .build();
+----
+
+* If the route depends only on the method, not the arguments, it's safe to memoize per `Method` (for example with `ConcurrentHashMap.computeIfAbsent`), because the set of methods is fixed.
+* Don't key a cache on the whole argument array. Arguments are often mutable, rarely implement `equals` the way you need, and make the cache grow without bound.
+* Any cache in a finder must be thread-safe, because finders are called concurrently.
+
+== Limitations
+
+* Only interfaces can be routed.
+* The router only intercepts calls made through it. When an implementation calls one of its own methods, the call goes straight to `this`.
+* The finder runs on every invocation; see <<Performance and caching>> if it's expensive.
+* Reactive return types (Reactor, RxJava) are untested.
+
+== Java modules
+
+Every module ships a `module-info` and can be used on the module path:
+
+[cols="2,3",options="header"]
+|===
+|Artifact |Module name
+
+|`abstraction4j-router-core` |`dev.abstraction4j.router.core`
+|`abstraction4j-router-jdk` |`dev.abstraction4j.router.jdk`
+|`abstraction4j-router-spring` |`dev.abstraction4j.router.spring`
+|`abstraction4j-router-spring-autoconfigure` |`dev.abstraction4j.router.spring.autoconfigure`
+|===
+
+`./gradlew build` runs `integration-tests/module-path`, a modular Spring Boot application that uses all three kinds of router from a named module.
+
+Routing a public interface in an exported package needs nothing extra.
+If the interface is not public, or its package is not exported, open the package so the router can call the implementation:
+
+[source,java]
+----
+module com.example.shipping {
+    requires dev.abstraction4j.router.jdk;
+    opens com.example.shipping to dev.abstraction4j.router.jdk;   // JdkAbstractionRouters
+    // opens com.example.shipping to spring.core;                 // SpringAbstractionRouters
+}
+----
+
+== GraalVM native images
+
+Routers are JDK dynamic proxies, which a native image can only create if their interfaces are registered at build time.
+
+*Spring Boot auto-configuration* registers everything for you.
+During Spring AOT processing each automatically registered router contributes its proxy and reflection hints, and its bean definition is generated next to the routed interface, so non-public interfaces work too.
+CI builds and runs a native image (GraalVM CE 25) of `integration-tests/native-image`, which uses an automatically registered router, manually created routers and the hints below, all routing a package-private interface.
+
+*Routers you create yourself*, with `JdkAbstractionRouters` or `SpringAbstractionRouters` in a `@Bean` method, need hints of their own:
+
+[source,java]
+----
+class RouterHints implements RuntimeHintsRegistrar {
+
+    @Override
+    public void registerHints(RuntimeHints hints, @Nullable ClassLoader classLoader) {
+        // SpringAbstractionRouters: the proxy also implements Spring AOP's marker interfaces.
+        hints.proxies().registerJdkProxy(AopProxyUtils.completeJdkProxyInterfaces(ShipperService.class));
+        // JdkAbstractionRouters: the proxy implements only your interface.
+        hints.proxies().registerJdkProxy(ShipperService.class);
+        // Both routers call the implementation reflectively.
+        hints.reflection().registerType(ShipperService.class, MemberCategory.INVOKE_PUBLIC_METHODS);
+    }
+
+}
+----
+
+Register it with `@ImportRuntimeHints(RouterHints.class)` on a configuration class.
+Without Spring, pass the same interfaces to GraalVM's `proxy-config.json` and `reflect-config.json`.
+
+== Building
+
+[source,shell]
+----
+./gradlew build                                    # format check, Checkstyle, tests, coverage and API checks
+./gradlew :abstraction4j-router-benchmarks:jmh      # run the JMH benchmarks
+----
+
+`build` fails if a library module's coverage drops below 90% of lines or 80% of branches.
+The coverage report is written to `build/reports/jacoco/testCodeCoverageReport/html/index.html`, and benchmark results to `benchmarks/build/reports/jmh/results.json`.
+
+Jars are reproducible: building the same commit with the same JDK produces byte-for-byte identical jars.
+Each published module also includes a CycloneDX SBOM (`<artifact>-<version>-cyclonedx.json`).
+
+== Acknowledgements
+
+The multi-module Gradle layout is modeled on https://github.com/resilience4j/resilience4j[Resilience4j].
+
+== License
+
+Copyright 2026-present the original author or authors.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and limitations under the License.

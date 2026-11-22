@@ -1,0 +1,7 @@
+dependencies {
+    implementation(project(":abstraction4j-router-jdk"))
+}
+
+application {
+    mainClass = "dev.abstraction4j.router.samples.jdk.JdkSampleApplication"
+}

@@ -1,0 +1,3 @@
+dependencies {
+    api(project(":abstraction4j-router-core"))
+}

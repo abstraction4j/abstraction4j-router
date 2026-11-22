@@ -1,0 +1,17 @@
+{
+  "groups": [
+    {
+      "name": "abstraction4j.router",
+      "sourceType": "dev.abstraction4j.router.spring.autoconfigure.AbstractionRouterAutoConfiguration"
+    }
+  ],
+  "properties": [
+    {
+      "name": "abstraction4j.router.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether to register a router bean for every ImplementationFinder bean.",
+      "sourceType": "dev.abstraction4j.router.spring.autoconfigure.AbstractionRouterAutoConfiguration",
+      "defaultValue": true
+    }
+  ]
+}

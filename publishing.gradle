@@ -1,0 +1,59 @@
+jar {
+    manifest {
+        attributes(
+                'Created-By': System.properties['java.version'] + " (" + System.properties['java.vendor'] + " " + System.properties['java.vm.version'] + ")",
+                'Implementation-Title': project.name,
+                'Implementation-Version': project.version,
+        )
+    }
+}
+
+signing {
+    def gpgKey = System.getenv("GPG_KEY")
+    def gpgPassphrase = System.getenv("GPG_PASSPHRASE")
+    // Maven Central rejects unsigned artifacts, so releases must be signed; snapshots are
+    // signed only when a key is available.
+    required = gpgKey != null || !version.toString().endsWith("-SNAPSHOT")
+    useInMemoryPgpKeys(gpgKey, gpgPassphrase)
+    sign publishing.publications
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifact(tasks.named("cyclonedxDirectBom").flatMap { it.jsonOutput }) {
+                classifier = "cyclonedx"
+                extension = "json"
+            }
+            pom {
+                name = project.name
+                description = project.description
+                url = projectUrl
+                licenses {
+                    license {
+                        name = "Apache-2.0"
+                        url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
+                        distribution = "repo"
+                    }
+                }
+                developers {
+                    developer {
+                        id = "joe-chambers"
+                        name = "Joe Chambers"
+                        url = "https://github.com/joe-chambers"
+                    }
+                }
+                scm {
+                    url = projectUrl
+                    connection = "scm:git:${projectUrl}.git"
+                    developerConnection = "scm:git:${projectUrl}.git"
+                }
+                issueManagement {
+                    system = "GitHub"
+                    url = "${projectUrl}/issues"
+                }
+            }
+        }
+    }
+}

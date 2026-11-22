@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+		"-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+		"https://checkstyle.org/dtds/configuration_1_3.dtd">
+<module name="com.puppycrawl.tools.checkstyle.Checker">
+	<module name="SuppressionFilter">
+		<property name="file" value="${config_loc}/checkstyle-suppressions.xml" />
+	</module>
+	<!-- Spring Java Format conventions: https://github.com/spring-io/spring-javaformat -->
+	<module name="io.spring.javaformat.checkstyle.SpringChecks">
+		<property name="projectRootPackage" value="dev.abstraction4j" />
+	</module>
+	<!-- SpringChecks only validates existing Javadoc; require it on every type and on
+		public and protected members. Test sources are exempt via the suppressions file. -->
+	<module name="TreeWalker">
+		<module name="MissingJavadocType">
+			<property name="scope" value="private" />
+		</module>
+		<module name="MissingJavadocMethod">
+			<property name="scope" value="protected" />
+			<property name="allowMissingPropertyJavadoc" value="false" />
+		</module>
+	</module>
+</module>

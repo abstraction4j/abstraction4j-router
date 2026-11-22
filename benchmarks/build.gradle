@@ -1,0 +1,23 @@
+dependencies {
+    implementation(project(":abstraction4j-router-jdk"))
+    implementation(project(":abstraction4j-router-spring"))
+    implementation(libs.spring.context)
+    implementation(libs.jmh.core)
+    annotationProcessor(libs.jmh.generator.annprocess)
+}
+
+// Benchmarks compile as part of `build` but only run on demand:
+//   ./gradlew :abstraction4j-router-benchmarks:jmh
+//   ./gradlew :abstraction4j-router-benchmarks:jmh --args="RouterBenchmarks.jdk -t 4"
+tasks.register("jmh", JavaExec) {
+    group = "benchmark"
+    description = "Runs the JMH benchmarks. Pass JMH options with --args."
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = "org.openjdk.jmh.Main"
+    def results = layout.buildDirectory.file("reports/jmh/results.json")
+    outputs.upToDateWhen { false }
+    doFirst {
+        results.get().asFile.parentFile.mkdirs()
+        args = ["-rf", "json", "-rff", results.get().asFile.absolutePath] + (args ?: [])
+    }
+}

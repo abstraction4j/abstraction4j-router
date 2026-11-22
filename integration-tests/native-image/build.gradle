@@ -1,0 +1,21 @@
+plugins {
+    alias(libs.plugins.spring.boot)
+    alias(libs.plugins.graalvm.native)
+}
+
+dependencies {
+    implementation(project(":abstraction4j-router-jdk"))
+    implementation(project(":abstraction4j-router-spring-autoconfigure"))
+    implementation(libs.spring.boot.starter)
+}
+
+// Needs GraalVM (GRAALVM_HOME or JAVA_HOME); not part of `build`. Builds the native image
+// and runs it; the run fails if any router misbehaves:
+//   ./gradlew :abstraction4j-router-it-native-image:nativeRun
+
+// Spring AOT generates the aot and aotTest sources; they don't follow the project's style.
+// Clearing their sources also stops `format` from triggering AOT processing.
+tasks.matching { it.name ==~ /(checkFormat|format|checkstyle)Aot(Test)?/ }.configureEach {
+    setSource([])
+    enabled = false
+}

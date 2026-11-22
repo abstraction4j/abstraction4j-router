@@ -1,0 +1,27 @@
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+    # Wait two weeks after a release before proposing it.
+    cooldown:
+      default-days: 14
+    groups:
+      spring:
+        patterns: [ "org.springframework*" ]
+      testing:
+        patterns: [ "org.junit*", "org.assertj*", "org.mockito*" ]
+      build-tooling:
+        patterns: [ "*" ]
+        exclude-patterns: [ "org.springframework*", "org.junit*", "org.assertj*", "org.mockito*" ]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    groups:
+      actions:
+        patterns: [ "*" ]

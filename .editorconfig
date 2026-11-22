@@ -1,0 +1,20 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+
+# Java formatting is owned by Spring Java Format (`./gradlew format`); these settings only keep
+# editors consistent with it.
+[*.java]
+indent_style = tab
+indent_size = 4
+
+[*.{gradle,groovy,kt,kts,xml,xsd,toml}]
+indent_style = space
+indent_size = 4
+
+[*.{adoc,md,yml,yaml,json}]
+indent_style = space
+indent_size = 2

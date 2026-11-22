@@ -1,0 +1,21 @@
+dependencies {
+    implementation(project(":abstraction4j-router-jdk"))
+    implementation(project(":abstraction4j-router-spring-autoconfigure"))
+    implementation(libs.spring.boot.starter)
+}
+
+// Runs the application from its named module on the module path; it exits non-zero if
+// any router misbehaves. Part of `check`.
+def modulePathTest = tasks.register("modulePathTest", JavaExec) {
+    description = "Runs the routers from a named module on the module path."
+    group = "verification"
+    classpath = sourceSets.main.runtimeClasspath
+    mainModule = "dev.abstraction4j.router.it.modulepath"
+    mainClass = "dev.abstraction4j.router.it.modulepath.ModulePathApplication"
+    // Spring's logging dependency (commons-logging) is not required by any module.
+    jvmArgs = ["--add-modules", "ALL-MODULE-PATH"]
+}
+
+tasks.named("check") {
+    dependsOn(modulePathTest)
+}

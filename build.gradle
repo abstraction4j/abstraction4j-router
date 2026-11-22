@@ -1,0 +1,226 @@
+plugins {
+    alias(libs.plugins.nexus.publish)
+    alias(libs.plugins.spring.javaformat) apply false
+    alias(libs.plugins.cyclonedx) apply false
+    alias(libs.plugins.graalvm.native) apply false
+    alias(libs.plugins.japicmp) apply false
+    alias(libs.plugins.sonarqube)
+    alias(libs.plugins.spring.boot) apply false
+    id("base")
+    id("idea")
+    id("jacoco-report-aggregation")
+}
+
+allprojects {
+    version = version == "unspecified" ? "0.1.0-SNAPSHOT" : version
+    group = "dev.abstraction4j.router"
+    description = "Abstraction4j router routes calls on an interface to the right implementation at runtime"
+
+    repositories {
+        mavenCentral()
+    }
+}
+
+nexusPublishing {
+    repositories {
+        sonatype {
+            nexusUrl = uri("https://ossrh-staging-api.central.sonatype.com/service/local/")
+            snapshotRepositoryUrl = uri("https://central.sonatype.com/repository/maven-snapshots/")
+        }
+    }
+}
+
+def catalog = libs
+
+// Lets CI check compatibility with other Spring versions, for example:
+//   ./gradlew build -PspringFrameworkVersion=7.0.1 -PspringBootVersion=4.0.0
+def springFrameworkVersion = providers.gradleProperty("springFrameworkVersion").orNull
+def springBootVersion = providers.gradleProperty("springBootVersion").orNull
+
+// Released version the public API is compared against; set in gradle.properties after a release.
+def apiBaselineVersion = providers.gradleProperty("apiBaselineVersion").orNull
+
+def sampleProjects = subprojects.findAll { it.name.contains("-sample-") }
+def benchmarkProjects = subprojects.findAll { it.name.endsWith("-benchmarks") }
+def integrationTestProjects = subprojects.findAll { it.name.contains("-it-") }
+def libraryProjects = subprojects - sampleProjects - benchmarkProjects - integrationTestProjects
+
+subprojects {
+    apply plugin: "java"
+    // Spring Java Format: `format` rewrites sources, `checkFormat` (part of `check`) verifies them.
+    apply plugin: "io.spring.javaformat"
+    apply plugin: "checkstyle"
+
+    dependencies {
+        testImplementation(platform(catalog.junit.bom))
+        testImplementation(catalog.bundles.testing)
+        testRuntimeOnly(catalog.junit.platform.launcher)
+
+        checkstyle(catalog.checkstyle)
+        checkstyle(catalog.spring.javaformat.checkstyle)
+    }
+
+    configurations.configureEach {
+        resolutionStrategy.eachDependency { details ->
+            if (springFrameworkVersion && details.requested.group == "org.springframework") {
+                details.useVersion(springFrameworkVersion)
+            }
+            if (springBootVersion && details.requested.group == "org.springframework.boot") {
+                details.useVersion(springBootVersion)
+            }
+        }
+    }
+
+    java {
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+    }
+
+    checkstyle {
+        configDirectory = rootProject.file("src/config/checkstyle")
+        maxWarnings = 0
+    }
+
+    tasks.withType(Checkstyle).configureEach {
+        // Checkstyle can't parse module declarations; Spring Java Format still checks them.
+        exclude("**/module-info.java")
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.deprecation = true
+        options.encoding = "UTF-8"
+        options.compilerArgs += ["-Xlint:unchecked", "-parameters"]
+    }
+
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
+        // Mockito's inline mock maker attaches an agent at runtime.
+        jvmArgs += ["-XX:+EnableDynamicAgentLoading"]
+        systemProperty "spring.main.banner-mode", "off"
+    }
+}
+
+// Published library modules.
+configure(libraryProjects) {
+    apply plugin: "java-library"
+    apply plugin: "jacoco"
+    apply plugin: "org.cyclonedx.bom"
+    apply plugin: "me.champeau.gradle.japicmp"
+    apply plugin: "maven-publish"
+    apply plugin: "signing"
+    apply from: "${rootDir}/publishing.gradle"
+
+    tasks.named("test", Test) {
+        jacoco {
+            // Count classes loaded by Spring AOT test compilers, which have no code source.
+            includeNoLocationClasses = true
+            excludes = ["jdk.internal.*"]
+        }
+    }
+
+    // Fail the build if coverage drops below these minimums.
+    tasks.named("jacocoTestCoverageVerification", JacocoCoverageVerification) {
+        violationRules {
+            rule {
+                limit {
+                    counter = "LINE"
+                    minimum = 0.90
+                }
+                limit {
+                    counter = "BRANCH"
+                    minimum = 0.80
+                }
+            }
+        }
+    }
+
+    // Fails `check` when public or protected API breaks compatibility with apiBaselineVersion.
+    def japicmp = tasks.register("japicmp", me.champeau.gradle.japicmp.JapicmpTask) {
+        description = "Compares the public API with the release set by apiBaselineVersion."
+        group = "verification"
+        onlyIf("apiBaselineVersion is set") { apiBaselineVersion != null }
+        if (apiBaselineVersion != null) {
+            oldClasspath.from(configurations.detachedConfiguration(
+                    dependencies.create("${project.group}:${project.name}:${apiBaselineVersion}@jar")))
+        }
+        newClasspath.from(tasks.named("jar"))
+        accessModifier = "protected"
+        onlyModified = true
+        failOnModification = true
+        failOnSourceIncompatibility = true
+        ignoreMissingClasses = true
+        htmlOutputFile = layout.buildDirectory.file("reports/japicmp/index.html")
+        txtOutputFile = layout.buildDirectory.file("reports/japicmp/report.txt")
+    }
+
+    tasks.named("check") {
+        dependsOn(tasks.named("jacocoTestCoverageVerification"), japicmp)
+    }
+
+    // CycloneDX SBOM of what the jar actually ships with, published as <module>-<version>-cyclonedx.json.
+    tasks.named("cyclonedxDirectBom") {
+        includeConfigs = ["runtimeClasspath"]
+        projectType = org.cyclonedx.model.Component.Type.LIBRARY
+        includeBomSerialNumber = false
+    }
+
+    dependencies {
+        api(catalog.jspecify)
+    }
+
+    java {
+        withSourcesJar()
+        withJavadocJar()
+    }
+
+    jar {
+        from("${rootDir}") {
+            include "COPYRIGHT.txt"
+            include "LICENSE.txt"
+        }
+    }
+}
+
+// Runnable samples, JMH benchmarks and integration tests; never published.
+configure(sampleProjects) {
+    apply plugin: "application"
+}
+
+configure(sampleProjects + benchmarkProjects + integrationTestProjects) {
+    dependencies {
+        implementation(catalog.jspecify)
+    }
+
+    sonar {
+        skipProject = true
+    }
+}
+
+// Coverage for the library modules, aggregated into one report:
+// build/reports/jacoco/testCodeCoverageReport/{html,testCodeCoverageReport.xml}
+dependencies {
+    libraryProjects.each { jacocoAggregation(project(it.path)) }
+}
+
+reporting {
+    reports {
+        testCodeCoverageReport(JacocoCoverageReport) {
+            testSuiteName = "test"
+        }
+    }
+}
+
+// SonarQube Cloud analysis, run by CI with SONAR_TOKEN: ./gradlew build sonar
+sonar {
+    properties {
+        property "sonar.projectKey", "abstraction4j_abstraction4j-router"
+        property "sonar.organization", "abstraction4j"
+        property "sonar.host.url", "https://sonarcloud.io"
+        property "sonar.coverage.jacoco.xmlReportPaths",
+                layout.buildDirectory.file("reports/jacoco/testCodeCoverageReport/testCodeCoverageReport.xml").get().asFile.path
+    }
+}
+
+tasks.named("check") {
+    dependsOn(tasks.named("testCodeCoverageReport"))
+}
