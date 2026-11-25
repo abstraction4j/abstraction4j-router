@@ -7,14 +7,14 @@ jmh = "1.37"
 nexus-publish = { id = "io.github.gradle-nexus.publish-plugin", version = "2.0.0" }
 spring-javaformat = { id = "io.spring.javaformat", version = "0.0.48" }
 cyclonedx = { id = "org.cyclonedx.bom", version = "3.5.1" }
-graalvm-native = { id = "org.graalvm.buildtools.native", version = "1.1.9" }
+graalvm-native = { id = "org.graalvm.buildtools.native", version = "1.1.18" }
 japicmp = { id = "me.champeau.gradle.japicmp", version = "0.4.6" }
 sonarqube = { id = "org.sonarqube", version = "7.5.0.8588" }
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
 
 [libraries]
 # Build tooling
-checkstyle = { module = "com.puppycrawl.tools:checkstyle", version = "10.26.1" }
+checkstyle = { module = "com.puppycrawl.tools:checkstyle", version = "14.4.0" }
 spring-javaformat-checkstyle = { module = "io.spring.javaformat:spring-javaformat-checkstyle", version = "0.0.48" }
 
 # Benchmarks
