@@ -1,5 +1,6 @@
 = Abstraction4j Router: Core
 :icons: font
+:source-root: ../
 :toc: macro
 :toclevels: 2
 ifdef::env-github[]
@@ -14,7 +15,7 @@ The API you write routing rules against: `ImplementationFinder<T>`, `RoutingImpl
 It has no dependencies beyond the JSpecify nullability annotations.
 
 This module only _decides_ where a call goes; a router module turns that decision into an object you can call.
-See link:../README.adoc#choosing-modules[Choosing modules] for how the pieces fit together.
+See xref:../README.adoc#choosing-modules[Choosing modules] for how the pieces fit together.
 
 toc::[]
 
@@ -60,7 +61,7 @@ public interface ImplementationFinder<T> {
 
 The router calls it once per invocation, never for `equals`, `hashCode` or `toString`, and possibly from many threads at once, so finders must be thread-safe.
 The arguments array is never `null`, but its elements are `null` wherever the caller passed `null` (in Kotlin it's an `Array<Any?>`).
-For a Kotlin `suspend` function, the last element is the coroutine's `Continuation`; see link:../README.adoc#kotlin[Kotlin and coroutines].
+For a Kotlin `suspend` function, the last element is the coroutine's `Continuation`; see xref:../README.adoc#kotlin[Kotlin and coroutines].
 Returning `null` fails the call with an `IllegalStateException`.
 
 Most finders don't need to look at `Method` or `Object[]` at all; `RoutingImplementationFinder` handles the common cases.
@@ -83,7 +84,7 @@ ImplementationFinder<ShipperService> finder = RoutingImplementationFinder.builde
 
 For each call, the finder uses the first parameter whose declared type is assignable to the routing type (`Customer`, or a subclass).
 The default implementation is used when the method has no such parameter, the argument or key is `null`, or no route matches the key.
-Without a default, those calls fail as described in link:../README.adoc#behavior[Behavior].
+Without a default, those calls fail as described in xref:../README.adoc#behavior[Behavior].
 Registering the same key twice, or an implementation that doesn't implement the interface, throws `IllegalArgumentException`.
 
 [[several-key-sources]]

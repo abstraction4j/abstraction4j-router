@@ -37,6 +37,16 @@ jobs:
         with:
           name: coverage-report
           path: build/reports/jacoco/testCodeCoverageReport/
+      # Catches broken docs before a release; the Docs workflow publishes released versions.
+      - name: Build documentation site
+        if: matrix.java == 21
+        run: ./gradlew site
+      - name: Upload documentation site
+        if: matrix.java == 21
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: docs-site
+          path: build/site/
       # Skipped until the SONAR_TOKEN secret is added, and on pull requests from forks.
       - name: SonarQube Cloud analysis
         if: matrix.java == 21 && env.SONAR_TOKEN != ''

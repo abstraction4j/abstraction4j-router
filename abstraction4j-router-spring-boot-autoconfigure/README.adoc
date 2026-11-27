@@ -1,5 +1,6 @@
 = Abstraction4j Router: Spring Boot Auto-configuration
 :icons: font
+:source-root: ../
 ifdef::env-github[]
 :tip-caption: :bulb:
 :note-caption: :information_source:
@@ -10,7 +11,7 @@ endif::[]
 
 Spring Boot auto-configuration that registers a `@Primary` router bean for every `ImplementationFinder` bean, with no annotations needed.
 
-Most applications should add link:../abstraction4j-router-spring-boot-starter/README.adoc[abstraction4j-router-spring-boot-starter] instead, which brings this module and Spring Boot in one dependency.
+Most applications should add xref:../abstraction4j-router-spring-boot-starter/README.adoc[abstraction4j-router-spring-boot-starter] instead, which brings this module and Spring Boot in one dependency.
 Depend on this module directly when you don't want a starter to add `spring-boot-starter` to your build, for example in your own starter or in a module that only configures beans.
 
 == Installation
@@ -45,7 +46,7 @@ Your application provides Spring Boot 4.0 or later.
 `AbstractionRouterAutoConfiguration` is registered in `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` and applies `@EnableSpringAbstraction` from `abstraction4j-router-spring`.
 Declare a finder as a bean and inject the interface; the router is registered for you.
 
-How routers are named and detected, the rules finders must follow, and how to exclude a finder with `@DisableRouter` are described in link:../abstraction4j-router-spring/README.adoc#automatic-registration[abstraction4j-router-spring].
+How routers are named and detected, the rules finders must follow, and how to exclude a finder with `@DisableRouter` are described in xref:../abstraction4j-router-spring/README.adoc#automatic-registration[abstraction4j-router-spring].
 
 == Configuration
 
