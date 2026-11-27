@@ -38,3 +38,8 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+### AI assistants (personal settings) ###
+.mcp.json
+AGENTS.local.md
+CLAUDE.local.md
+.claude/settings.local.json
