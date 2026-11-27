@@ -31,6 +31,12 @@ Depend on this module directly when you don't want a starter to add `spring-boot
 implementation 'dev.abstraction4j.router:abstraction4j-router-spring-boot-autoconfigure:0.1.0'
 ----
 
+.Gradle (Kotlin)
+[source,kotlin]
+----
+implementation("dev.abstraction4j.router:abstraction4j-router-spring-boot-autoconfigure:0.1.0")
+----
+
 This brings in `abstraction4j-router-spring` and `abstraction4j-router-core`, but not Spring Boot.
 Your application provides Spring Boot 4.0 or later.
 

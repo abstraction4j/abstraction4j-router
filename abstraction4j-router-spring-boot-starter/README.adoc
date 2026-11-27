@@ -33,6 +33,12 @@ It contains no code; it brings in:
 implementation 'dev.abstraction4j.router:abstraction4j-router-spring-boot-starter:0.1.0'
 ----
 
+.Gradle (Kotlin)
+[source,kotlin]
+----
+implementation("dev.abstraction4j.router:abstraction4j-router-spring-boot-starter:0.1.0")
+----
+
 The starter is built against a recent Spring Boot 4 release and works with Spring Boot 4.0 or later.
 With Spring Boot's dependency management (the `spring-boot-starter-parent` POM, the `spring-boot-dependencies` BOM, or the Spring Boot Gradle plugin with `io.spring.dependency-management`), your application's Spring Boot version is used.
 

@@ -17,6 +17,7 @@
 package dev.abstraction4j.router.spring;
 
 import java.lang.reflect.Method;
+import java.util.Objects;
 
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
@@ -35,6 +36,8 @@ import dev.abstraction4j.router.core.ImplementationFinder;
  */
 final class DynamicSpringAbstractionHandler<T> implements MethodInterceptor {
 
+	private static final Object[] NO_ARGUMENTS = {};
+
 	private final ImplementationFinder<T> finder;
 
 	private final String description;
@@ -52,7 +55,9 @@ final class DynamicSpringAbstractionHandler<T> implements MethodInterceptor {
 		if (AopUtils.isToStringMethod(method)) {
 			return this.description;
 		}
-		Object[] args = invocation.getArguments();
+		// Spring passes an empty array for methods without parameters, but another
+		// advisor on the router can replace the arguments with null.
+		@Nullable Object[] args = Objects.requireNonNullElse(invocation.getArguments(), NO_ARGUMENTS);
 		T target = this.finder.findImplementation(method, args);
 		Assert.state(target != null, () -> "Unable to find implementation for method: <" + method + ">");
 		// Makes non-public interface methods accessible and unwraps

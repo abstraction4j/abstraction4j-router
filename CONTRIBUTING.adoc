@@ -108,7 +108,7 @@ To test against other Spring versions, override them on the command line, as the
 |`abstraction4j-router-spring-boot-starter`
 |Spring Boot starter with no code: depends on the auto-configuration and `spring-boot-starter`.
 
-|`samples/jdk`, `samples/spring-boot`
+|`samples/jdk`, `samples/spring-boot`, `samples/kotlin`, `samples/kotlin-coroutines`
 |Runnable samples (`abstraction4j-router-sample-*`). Built, formatted and checked like the library, but never published. Keep them working when the API changes.
 
 |`benchmarks`
@@ -116,6 +116,9 @@ To test against other Spring versions, override them on the command line, as the
 
 |`integration-tests/module-path`
 |Modular Spring Boot application run from the module path by `check` (`abstraction4j-router-it-module-path`). Fails the build if a router can't be used from a named module.
+
+|`integration-tests/kotlin-coroutines`
+|Kotlin tests (`abstraction4j-router-it-kotlin-coroutines`) for `suspend` functions, `Flow` and Kotlin finders through the JDK router, a Spring router and the Spring Boot starter. `check` runs them twice: with `kotlinx-coroutines-reactor` (`test`) and without it (`testWithoutCoroutinesReactor`).
 
 |`integration-tests/native-image`
 |Spring Boot application built as a GraalVM native image (`abstraction4j-router-it-native-image`). Needs GraalVM, so `build` only compiles it; CI runs `./gradlew :abstraction4j-router-it-native-image:nativeRun`. Run it locally with `GRAALVM_HOME` set if you change routers, hints or AOT support.

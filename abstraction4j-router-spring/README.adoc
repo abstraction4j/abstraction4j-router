@@ -36,6 +36,12 @@ toc::[]
 implementation 'dev.abstraction4j.router:abstraction4j-router-spring:0.1.0'
 ----
 
+.Gradle (Kotlin)
+[source,kotlin]
+----
+implementation("dev.abstraction4j.router:abstraction4j-router-spring:0.1.0")
+----
+
 This brings in `abstraction4j-router-core`, but not Spring.
 Your application provides Spring Framework 7.0.1 or later (`spring-context`, which a Spring application already has), so the library never changes the Spring version you run on.
 

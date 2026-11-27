@@ -45,8 +45,8 @@ final class DynamicJdkAbstractionInvocationHandler<T> implements InvocationHandl
 	}
 
 	@Override
-	public @Nullable Object invoke(Object proxy, Method method, Object @Nullable [] args) throws Throwable {
-		Object[] arguments = (args != null) ? args : NO_ARGUMENTS;
+	public @Nullable Object invoke(Object proxy, Method method, @Nullable Object @Nullable [] args) throws Throwable {
+		@Nullable Object[] arguments = (args != null) ? args : NO_ARGUMENTS;
 		if (isEqualsMethod(method)) {
 			return proxy == arguments[0];
 		}
@@ -63,7 +63,8 @@ final class DynamicJdkAbstractionInvocationHandler<T> implements InvocationHandl
 		return invokeTarget(target, method, arguments);
 	}
 
-	private static @Nullable Object invokeTarget(Object target, Method method, Object[] arguments) throws Throwable {
+	private static @Nullable Object invokeTarget(Object target, Method method, @Nullable Object[] arguments)
+			throws Throwable {
 		// Methods of non-public interfaces aren't accessible from this package.
 		if (!method.canAccess(target)) {
 			method.trySetAccessible();

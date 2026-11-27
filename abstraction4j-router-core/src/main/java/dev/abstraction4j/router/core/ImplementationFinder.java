@@ -46,9 +46,11 @@ public interface ImplementationFinder<T> {
 	 * returns {@code null}, the router throws an {@link IllegalStateException}.
 	 * @param method the interface method being invoked
 	 * @param args the arguments of the invocation; never {@code null}, and empty for
-	 * methods without parameters
+	 * methods without parameters. Elements are {@code null} where the caller passed
+	 * {@code null}. For a Kotlin {@code suspend} function, the last element is the
+	 * coroutine's {@code Continuation}.
 	 * @return the implementation to invoke, or {@code null} if none applies
 	 */
-	@Nullable T findImplementation(Method method, Object[] args);
+	@Nullable T findImplementation(Method method, @Nullable Object[] args);
 
 }

@@ -39,6 +39,12 @@ Add it on its own when code only _defines_ finders or routed interfaces and shou
 implementation 'dev.abstraction4j.router:abstraction4j-router-core:0.1.0'
 ----
 
+.Gradle (Kotlin)
+[source,kotlin]
+----
+implementation("dev.abstraction4j.router:abstraction4j-router-core:0.1.0")
+----
+
 == ImplementationFinder
 
 A finder answers one question for every call made through a router: which implementation should handle it?
@@ -48,12 +54,13 @@ It receives the invoked interface method and its arguments, and returns an imple
 ----
 @FunctionalInterface
 public interface ImplementationFinder<T> {
-    @Nullable T findImplementation(Method method, Object[] args);
+    @Nullable T findImplementation(Method method, @Nullable Object[] args);
 }
 ----
 
 The router calls it once per invocation, never for `equals`, `hashCode` or `toString`, and possibly from many threads at once, so finders must be thread-safe.
-The arguments array is never `null`.
+The arguments array is never `null`, but its elements are `null` wherever the caller passed `null` (in Kotlin it's an `Array<Any?>`).
+For a Kotlin `suspend` function, the last element is the coroutine's `Continuation`; see link:../README.adoc#kotlin[Kotlin and coroutines].
 Returning `null` fails the call with an `IllegalStateException`.
 
 Most finders don't need to look at `Method` or `Object[]` at all; `RoutingImplementationFinder` handles the common cases.
