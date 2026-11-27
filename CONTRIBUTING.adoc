@@ -141,6 +141,29 @@ The root link:README.adoc[README.adoc] explains the library as a whole: why it e
 Each published module has its own `README.adoc` with its Maven and Gradle (Groovy) coordinates, setup and details.
 When you change a module, update its README; when you add a module, give it a README and add it to _Choosing modules_ in the root README.
 
+Link between READMEs with `xref:` (for example `xref:../README.adoc#behavior[Behavior]`) so the links work both on GitHub and in the documentation site, and to the samples with `+link:{source-root}samples/...[]+`.
+
+The READMEs are also published as a documentation site, with each module's Javadoc, at https://abstraction4j.github.io/abstraction4j-router/:
+
+[source,shell]
+----
+./gradlew site                                     # build/site; open build/site/README.html
+----
+
+Pull request builds upload the site as the `docs-site` artifact.
+After a release, the link:.github/workflows/docs.yml[Docs workflow] publishes it in a folder of its own (`/0.1.0/`), but only once that version is on Maven Central; it checks every hour, because the Central Portal can't notify GitHub.
+Earlier versions are kept on the `gh-pages` branch and aren't rebuilt; to republish one (for example after a docs fix on its tag), run the workflow by hand with that version.
+To preview the published layout locally, without a release:
+
+[source,shell]
+----
+mkdir -p /tmp/pages
+git tag v0.1.0 && SKIP_CENTRAL_CHECK=true .github/scripts/publish-docs.sh /tmp/pages; git tag -d v0.1.0
+python3 -m http.server --directory /tmp/pages        # http://localhost:8000/
+----
+
+The tag is only local and deleted straight away; never push it.
+
 IMPORTANT: Each module must use its own packages.
 Two modules must never share a package (for example, `dev.abstraction4j.router.spring`), because split packages break the Java module system.
 

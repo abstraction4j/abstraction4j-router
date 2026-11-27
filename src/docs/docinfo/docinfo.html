@@ -1,0 +1,68 @@
+<style>
+#a4j-bar { position: sticky; top: 0; z-index: 1000; display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; align-items: center;
+  padding: .5rem 1rem; background: #1f2937; color: #f9fafb; font: 14px/1.4 system-ui, sans-serif; }
+#a4j-bar a { color: #bfdbfe; text-decoration: none; }
+#a4j-bar a:hover { text-decoration: underline; }
+#a4j-bar .a4j-home { color: #f9fafb; font-weight: 600; }
+#a4j-bar select { font: inherit; margin-left: .25rem; }
+#a4j-api a { margin-left: .5rem; }
+#a4j-banner { display: none; padding: .5rem 1rem; background: #fef3c7; color: #78350f; font: 14px/1.4 system-ui, sans-serif; }
+#a4j-banner a { color: #92400e; font-weight: 600; }
+body.toc2 #toc.toc2 { top: 2.5rem; }
+</style>
+<script>
+// Version picker and links for the published site, where every version lives in its own
+// folder next to versions.json:  <base>/<version>/README.html
+document.addEventListener("DOMContentLoaded", function () {
+  var bar = document.getElementById("a4j-bar");
+  var version = bar.dataset.version;
+  var path = window.location.pathname;
+  var at = path.indexOf("/" + version + "/");
+  // Page path relative to the version folder, e.g. "abstraction4j-router-core/README.html".
+  var page = at >= 0 ? path.slice(at + version.length + 2) : "";
+  var depth = page ? page.split("/").length - 1 : (/\/abstraction4j-router-[^\/]+\/[^\/]*$/.test(path) ? 1 : 0);
+  var root = depth ? "../".repeat(depth) : "./";
+
+  document.querySelectorAll("#a4j-bar [data-path]").forEach(function (link) {
+    link.href = root + link.dataset.path;
+  });
+  var api = document.getElementById("a4j-api");
+  bar.dataset.apiModules.split(",").filter(Boolean).forEach(function (module) {
+    var link = document.createElement("a");
+    link.href = root + "api/" + module + "/index.html";
+    link.textContent = module.replace("abstraction4j-router-", "");
+    api.appendChild(link);
+  });
+
+  if (at < 0) {
+    return; // Local preview: there's no versions.json.
+  }
+  var base = path.slice(0, at + 1);
+  fetch(base + "versions.json").then(function (response) {
+    return response.ok ? response.json() : null;
+  }).then(function (data) {
+    if (!data) {
+      return;
+    }
+    var select = document.getElementById("a4j-version");
+    select.innerHTML = "";
+    data.versions.forEach(function (v) {
+      var option = new Option(v === data.latest ? v + " (latest)" : v, v, false, v === version);
+      select.appendChild(option);
+    });
+    select.addEventListener("change", function () {
+      window.location.href = base + select.value + "/" + page;
+    });
+    if (data.latest && data.latest !== version) {
+      var banner = document.getElementById("a4j-banner");
+      banner.innerHTML = "You're viewing the documentation for " + version + ". The latest release is ";
+      var link = document.createElement("a");
+      link.href = base + data.latest + "/" + page;
+      link.textContent = data.latest;
+      banner.appendChild(link);
+      banner.appendChild(document.createTextNode("."));
+      banner.style.display = "block";
+    }
+  });
+});
+</script>

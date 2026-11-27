@@ -1,0 +1,45 @@
+// Documentation site: the READMEs converted to HTML, plus the Javadoc of each published
+// module under api/<module>/.
+//   ./gradlew site        writes build/site
+// .github/workflows/docs.yml publishes it, one folder per version, once that version is
+// on Maven Central.
+apply plugin: "org.asciidoctor.jvm.convert"
+
+def docsVersion = version.toString()
+// Links to the samples point at the sources of the documented version.
+def sourceRef = docsVersion.endsWith("-SNAPSHOT") ? "main" : "v${docsVersion}"
+// The starter has no code, so no Javadoc.
+def apiProjects = subprojects.findAll { it.pluginManager.hasPlugin("maven-publish") && !it.sourceSets.main.allJava.empty }
+
+tasks.named("asciidoctor") {
+    // JRuby asks for these to avoid a warning about native subprocess control.
+    jvm {
+        jvmArgs("--add-opens", "java.base/sun.nio.ch=ALL-UNNAMED", "--add-opens", "java.base/java.io=ALL-UNNAMED")
+    }
+    sourceDir = rootDir
+    sources {
+        include "README.adoc", "abstraction4j-router-*/README.adoc"
+    }
+    outputDir = layout.buildDirectory.dir("docs/asciidoc")
+    attributes(
+            "docs-version": docsVersion,
+            "source-root": "${projectUrl}/tree/${sourceRef}/",
+            "project-url": projectUrl,
+            "api-modules": apiProjects*.name.join(","),
+            "toc": "left",
+            "source-highlighter": "rouge",
+            "docinfo": "shared",
+            "docinfodir": file("src/docs/docinfo").absolutePath,
+    )
+}
+
+tasks.register("site", Sync) {
+    description = "Builds the documentation site (guide and Javadoc) into build/site."
+    group = "documentation"
+    from(tasks.named("asciidoctor"))
+    from("src/docs/site")
+    apiProjects.each { p ->
+        from(p.tasks.named("javadoc")) { into("api/${p.name}") }
+    }
+    into(layout.buildDirectory.dir("site"))
+}

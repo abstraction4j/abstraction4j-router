@@ -1,5 +1,6 @@
 = Abstraction4j Router: Spring
 :icons: font
+:source-root: ../
 :toc: macro
 :toclevels: 2
 ifdef::env-github[]
@@ -14,7 +15,7 @@ Routers built on Spring AOP, for Spring Framework applications.
 You can register each router yourself with `SpringAbstractionRouters`, or let `@EnableSpringAbstraction` register one for every finder bean.
 
 Spring Boot applications don't need to use this module directly: add `abstraction4j-router-spring-boot-starter`, which builds on it and turns automatic registration on for you.
-See link:../README.adoc#choosing-modules[Choosing modules].
+See xref:../README.adoc#choosing-modules[Choosing modules].
 
 toc::[]
 
@@ -48,7 +49,7 @@ Your application provides Spring Framework 7.0.1 or later (`spring-context`, whi
 == Why a Spring router
 
 A Spring router is a regular Spring AOP proxy: Spring tools such as `AopUtils` recognize it, it can be registered automatically, and Spring AOT generates the hints a GraalVM native image needs.
-It costs a few tens of nanoseconds more per call than a JDK router (see link:../README.adoc#performance-and-caching[Performance and caching]).
+It costs a few tens of nanoseconds more per call than a JDK router (see xref:../README.adoc#performance-and-caching[Performance and caching]).
 
 [[automatic-registration]]
 == Automatic registration
@@ -147,7 +148,7 @@ class ShippingConfiguration {
 If automatic registration is also on, mark that finder with `@DisableRouter` so it doesn't get a second router.
 
 Spring routers follow Spring AOP's proxy equality.
-The rest of the contract is in link:../README.adoc#behavior[Behavior].
+The rest of the contract is in xref:../README.adoc#behavior[Behavior].
 
 == Module path
 
@@ -166,4 +167,4 @@ module com.example.shipping {
 == GraalVM native images
 
 Automatically registered routers need nothing extra: during Spring AOT processing each one contributes its proxy and reflection hints.
-Routers you create with `SpringAbstractionRouters.routerFor` need hints of their own; see link:../README.adoc#native-images[GraalVM native images].
+Routers you create with `SpringAbstractionRouters.routerFor` need hints of their own; see xref:../README.adoc#native-images[GraalVM native images].

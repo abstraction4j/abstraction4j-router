@@ -1,5 +1,6 @@
 = Abstraction4j Router: JDK
 :icons: font
+:source-root: ../
 ifdef::env-github[]
 :tip-caption: :bulb:
 :note-caption: :information_source:
@@ -12,7 +13,7 @@ Routers built on `java.lang.reflect.Proxy`, for applications that don't use Spri
 It depends only on `abstraction4j-router-core`, which it brings in.
 
 In a Spring application, use `abstraction4j-router-spring` instead: its routers are regular Spring AOP proxies and can be registered automatically.
-See link:../README.adoc#choosing-modules[Choosing modules].
+See xref:../README.adoc#choosing-modules[Choosing modules].
 
 == Installation
 
@@ -40,7 +41,7 @@ implementation("dev.abstraction4j.router:abstraction4j-router-jdk:0.1.0")
 
 == Usage
 
-Build a finder (see link:../abstraction4j-router-core/README.adoc[abstraction4j-router-core]) and create the router once, where you wire the rest of your application:
+Build a finder (see xref:../abstraction4j-router-core/README.adoc[abstraction4j-router-core]) and create the router once, where you wire the rest of your application:
 
 [source,java]
 ----
@@ -62,7 +63,7 @@ The proxy class is defined in the interface's class loader.
 If the implementations or the finder live in a class loader that the interface's can't see, pass one explicitly with `routerFor(classLoader, type, finder)`.
 
 JDK routers compare by identity: `equals` is `==` and `hashCode` is the identity hash code.
-The rest of the contract (exceptions, `null` results, `toString`) is in link:../README.adoc#behavior[Behavior].
+The rest of the contract (exceptions, `null` results, `toString`) is in xref:../README.adoc#behavior[Behavior].
 
 == Module path
 
@@ -81,4 +82,4 @@ module com.example.shipping {
 == GraalVM native images
 
 A native image can only create a JDK proxy whose interfaces were registered at build time, and the router calls the implementation reflectively.
-Register both for every routed interface, in `proxy-config.json` and `reflect-config.json`, or with a Spring `RuntimeHintsRegistrar` as shown in link:../README.adoc#native-images[GraalVM native images].
+Register both for every routed interface, in `proxy-config.json` and `reflect-config.json`, or with a Spring `RuntimeHintsRegistrar` as shown in xref:../README.adoc#native-images[GraalVM native images].

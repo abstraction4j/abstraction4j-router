@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.nexus.publish)
+    alias(libs.plugins.asciidoctor) apply false
     alias(libs.plugins.spring.javaformat) apply false
     alias(libs.plugins.cyclonedx) apply false
     alias(libs.plugins.graalvm.native) apply false
@@ -234,3 +235,5 @@ sonar {
 tasks.named("check") {
     dependsOn(tasks.named("testCodeCoverageReport"))
 }
+
+apply from: "${rootDir}/docs.gradle"

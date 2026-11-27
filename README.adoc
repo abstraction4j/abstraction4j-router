@@ -1,6 +1,7 @@
 = Abstraction4j Router
 :author: Joe Chambers
 :icons: font
+:source-root:
 :toc: macro
 :toclevels: 2
 :numbered:
@@ -17,6 +18,8 @@ image:https://img.shields.io/badge/license-ASF2-blue.svg["Apache License 2",link
 Abstraction4j Router keeps "which implementation should handle this call?" logic out of your business code.
 You describe the abstraction as an interface, write one implementation per variant, and supply a small _finder_ that picks the right implementation for each call.
 The library generates a router for the interface, a dynamic proxy that does the routing at runtime.
+
+Documentation for each release, with the Javadoc of every module, is at https://abstraction4j.github.io/abstraction4j-router/.
 
 toc::[]
 
@@ -114,7 +117,7 @@ The same builder grows with your routing rules, so routing stays in one place in
 * *Conditional routes*: choose between implementations for the same key at call time, for example behind a feature flag or for beta tenants.
 * *Custom finders*: for any other rule, implement `ImplementationFinder` directly; it receives the invoked `Method` and its arguments.
 
-All of these are described in link:abstraction4j-router-core/README.adoc[abstraction4j-router-core].
+All of these are described in xref:abstraction4j-router-core/README.adoc[abstraction4j-router-core].
 
 === Routers
 
@@ -145,23 +148,23 @@ Pick the one that matches your application:
 |You are building |Add |Why
 
 |A Spring Boot application
-|link:abstraction4j-router-spring-boot-starter/README.adoc[`abstraction4j-router-spring-boot-starter`]
+|xref:abstraction4j-router-spring-boot-starter/README.adoc[`abstraction4j-router-spring-boot-starter`]
 |One dependency and no configuration. A router is registered for every finder bean, works in GraalVM native images, and can be turned off with a property.
 
 |A Spring Boot application or library that manages its Spring Boot dependencies itself, or your own starter
-|link:abstraction4j-router-spring-boot-autoconfigure/README.adoc[`abstraction4j-router-spring-boot-autoconfigure`]
+|xref:abstraction4j-router-spring-boot-autoconfigure/README.adoc[`abstraction4j-router-spring-boot-autoconfigure`]
 |The same auto-configuration, without the starter's dependency on `spring-boot-starter`.
 
 |A Spring application without Spring Boot
-|link:abstraction4j-router-spring/README.adoc[`abstraction4j-router-spring`]
+|xref:abstraction4j-router-spring/README.adoc[`abstraction4j-router-spring`]
 |Add `@EnableSpringAbstraction` for automatic registration, or create routers yourself with `SpringAbstractionRouters`. Uses your application's Spring version.
 
 |A plain Java application
-|link:abstraction4j-router-jdk/README.adoc[`abstraction4j-router-jdk`]
+|xref:abstraction4j-router-jdk/README.adoc[`abstraction4j-router-jdk`]
 |Routers from `JdkAbstractionRouters`, with no framework and no dependencies beyond the core.
 
 |A library that only defines finders or routed interfaces
-|link:abstraction4j-router-core/README.adoc[`abstraction4j-router-core`]
+|xref:abstraction4j-router-core/README.adoc[`abstraction4j-router-core`]
 |Has no dependencies, and leaves the choice of router to the application that uses your library.
 |===
 
@@ -237,7 +240,7 @@ class OrderService {
 ----
 
 The auto-configuration registers a `@Primary` router named `shipperServiceFinderRouter`, so `OrderService` receives the router rather than one of the implementations.
-The rules finders must follow, and how to exclude one, are in link:abstraction4j-router-spring/README.adoc#automatic-registration[abstraction4j-router-spring]; the `abstraction4j.router.enabled` property is in link:abstraction4j-router-spring-boot-autoconfigure/README.adoc[abstraction4j-router-spring-boot-autoconfigure].
+The rules finders must follow, and how to exclude one, are in xref:abstraction4j-router-spring/README.adoc#automatic-registration[abstraction4j-router-spring]; the `abstraction4j.router.enabled` property is in xref:abstraction4j-router-spring-boot-autoconfigure/README.adoc[abstraction4j-router-spring-boot-autoconfigure].
 
 == Requirements
 
@@ -254,26 +257,26 @@ Their public API is the types named in each module's README; everything else is 
 
 == Samples
 
-Four runnable samples live in link:samples[samples].
+Four runnable samples live in link:{source-root}samples[samples].
 All of them use the shipping example from this README: customers who use different carriers place orders through an `OrderService` that only knows about `ShipperService`.
 
 [cols="1,2,2",options="header"]
 |===
 |Sample |Shows |Run it
 
-|link:samples/jdk[samples/jdk]
+|link:{source-root}samples/jdk[samples/jdk]
 |Plain Java: builds a `RoutingImplementationFinder` and a router with `JdkAbstractionRouters`.
 |`./gradlew :abstraction4j-router-sample-jdk:run`
 
-|link:samples/spring-boot[samples/spring-boot]
+|link:{source-root}samples/spring-boot[samples/spring-boot]
 |Spring Boot with the starter: declares the finder as a `@Bean`; the auto-configuration registers the router and `OrderService` receives it by constructor injection.
 |`./gradlew :abstraction4j-router-sample-spring-boot:run`
 
-|link:samples/kotlin[samples/kotlin]
+|link:{source-root}samples/kotlin[samples/kotlin]
 |The plain Java sample in Kotlin: a finder built from Kotlin and a router from `JdkAbstractionRouters`.
 |`./gradlew :abstraction4j-router-sample-kotlin:run`
 
-|link:samples/kotlin-coroutines[samples/kotlin-coroutines]
+|link:{source-root}samples/kotlin-coroutines[samples/kotlin-coroutines]
 |Spring Boot with the starter and coroutines: `suspend` and `Flow` methods, orders placed concurrently, and a carrier looked up by a suspend function before the call and routed through the coroutine context (see <<kotlin>>).
 |`./gradlew :abstraction4j-router-sample-kotlin-coroutines:run`
 |===
@@ -456,7 +459,7 @@ withContext(Dispatchers.IO + MDCContext()) {
 }
 ----
 
-The finder can't suspend, so a key that needs a suspending lookup (a remote service, a database) is resolved _before_ the call and passed in as an argument or through the coroutine context, as link:samples/kotlin-coroutines[samples/kotlin-coroutines] does with a `ThreadLocal` and `asContextElement`.
+The finder can't suspend, so a key that needs a suspending lookup (a remote service, a database) is resolved _before_ the call and passed in as an argument or through the coroutine context, as link:{source-root}samples/kotlin-coroutines[samples/kotlin-coroutines] does with a `ThreadLocal` and `asContextElement`.
 
 `./gradlew build` runs `integration-tests/kotlin-coroutines`, which covers the JDK router, a Spring router and one registered by the Spring Boot starter, with and without `kotlinx-coroutines-reactor`.
 

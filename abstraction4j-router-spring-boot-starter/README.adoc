@@ -1,5 +1,6 @@
 = Abstraction4j Router: Spring Boot Starter
 :icons: font
+:source-root: ../
 ifdef::env-github[]
 :tip-caption: :bulb:
 :note-caption: :information_source:
@@ -74,7 +75,7 @@ class OrderService {
 }
 ----
 
-* Configuration and native image support: link:../abstraction4j-router-spring-boot-autoconfigure/README.adoc[abstraction4j-router-spring-boot-autoconfigure].
-* How routers are registered, and the rules finders must follow: link:../abstraction4j-router-spring/README.adoc#automatic-registration[abstraction4j-router-spring].
-* Writing finders: link:../abstraction4j-router-core/README.adoc[abstraction4j-router-core].
-* A complete application: link:../samples/spring-boot[samples/spring-boot].
+* Configuration and native image support: xref:../abstraction4j-router-spring-boot-autoconfigure/README.adoc[abstraction4j-router-spring-boot-autoconfigure].
+* How routers are registered, and the rules finders must follow: xref:../abstraction4j-router-spring/README.adoc#automatic-registration[abstraction4j-router-spring].
+* Writing finders: xref:../abstraction4j-router-core/README.adoc[abstraction4j-router-core].
+* A complete application: link:{source-root}samples/spring-boot[samples/spring-boot].
