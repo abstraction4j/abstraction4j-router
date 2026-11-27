@@ -1,6 +1,5 @@
 dependencies {
-    implementation(project(":abstraction4j-router-spring-autoconfigure"))
-    implementation(libs.spring.boot.starter)
+    implementation(project(":abstraction4j-router-spring-boot-starter"))
 
     testImplementation(libs.spring.boot.test)
 }

@@ -1,0 +1,196 @@
+= Abstraction4j Router: Core
+:icons: font
+:toc: macro
+:toclevels: 2
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+
+The API you write routing rules against: `ImplementationFinder<T>`, `RoutingImplementationFinder<T>` and `@RoutingKey`.
+It has no dependencies beyond the JSpecify nullability annotations.
+
+This module only _decides_ where a call goes; a router module turns that decision into an object you can call.
+See link:../README.adoc#choosing-modules[Choosing modules] for how the pieces fit together.
+
+toc::[]
+
+== When to depend on it
+
+Every other module brings this one in, so most applications never declare it.
+Add it on its own when code only _defines_ finders or routed interfaces and shouldn't choose how routers are created, for example a shared library whose finders are used by both Spring and plain Java applications.
+
+.Maven
+[source,xml]
+----
+<dependency>
+  <groupId>dev.abstraction4j.router</groupId>
+  <artifactId>abstraction4j-router-core</artifactId>
+  <version>0.1.0</version>
+</dependency>
+----
+
+.Gradle (Groovy)
+[source,groovy]
+----
+implementation 'dev.abstraction4j.router:abstraction4j-router-core:0.1.0'
+----
+
+== ImplementationFinder
+
+A finder answers one question for every call made through a router: which implementation should handle it?
+It receives the invoked interface method and its arguments, and returns an implementation of the same interface:
+
+[source,java]
+----
+@FunctionalInterface
+public interface ImplementationFinder<T> {
+    @Nullable T findImplementation(Method method, Object[] args);
+}
+----
+
+The router calls it once per invocation, never for `equals`, `hashCode` or `toString`, and possibly from many threads at once, so finders must be thread-safe.
+The arguments array is never `null`.
+Returning `null` fails the call with an `IllegalStateException`.
+
+Most finders don't need to look at `Method` or `Object[]` at all; `RoutingImplementationFinder` handles the common cases.
+
+[[typed-routing]]
+== Typed routing
+
+Most finders route on one argument of the call.
+`RoutingImplementationFinder` does that without touching `Method` or `Object[]`: name the argument type, derive a key from it, and map keys to implementations.
+
+[source,java]
+----
+ImplementationFinder<ShipperService> finder = RoutingImplementationFinder.builder(ShipperService.class)
+    .byArgument(Customer.class, Customer::carrier)   // first parameter of type Customer
+    .route(Carrier.UPS, upsShipperService)
+    .route(Carrier.FEDEX, fedexShipperService)
+    .otherwise(uspsShipperService)                   // optional default
+    .build();
+----
+
+For each call, the finder uses the first parameter whose declared type is assignable to the routing type (`Customer`, or a subclass).
+The default implementation is used when the method has no such parameter, the argument or key is `null`, or no route matches the key.
+Without a default, those calls fail as described in link:../README.adoc#behavior[Behavior].
+Registering the same key twice, or an implementation that doesn't implement the interface, throws `IllegalArgumentException`.
+
+[[several-key-sources]]
+=== Several key sources
+
+When the key can come from more than one place, chain key sources with `or()`.
+They are tried in order, and `otherwise(...)` stays the final fallback:
+
+[source,java]
+----
+ImplementationFinder<ShipperService> finder = RoutingImplementationFinder.builder(ShipperService.class)
+    .byArgument(Customer.class, Customer::carrier)   // 1. a Customer parameter
+    .or().byArgument(Order.class, Order::carrier)    // 2. else an Order parameter
+    .or().byContext(() -> carrierFromMdc())          // 3. else the current context
+    .route(Carrier.UPS, upsShipperService)
+    .route(Carrier.FEDEX, fedexShipperService)
+    .otherwise(uspsShipperService)                   // 4. else the default
+    .build();
+
+static @Nullable Carrier carrierFromMdc() {
+    String carrier = MDC.get("carrier");
+    return (carrier != null) ? Carrier.valueOf(carrier) : null;
+}
+----
+
+* A source that yields no key passes on to the next one. That happens when the method has no such parameter, the argument is `null`, or the extractor or supplier returns `null`.
+* The first key found decides the call. If that key has no route, the default is used and later sources are _not_ tried, so an unknown carrier on a `Customer` never falls through to the MDC.
+* All sources produce the same key type, so each route is declared once; the compiler checks this.
+* `byContext(...)` can also be the first, or only, source: `builder(ShipperService.class).byContext(() -> carrierFromMdc())`.
+* Context suppliers run on the thread that calls the router. Thread-bound context such as the SLF4J MDC is empty on other threads (`@Async`, executors, Reactor) unless you propagate it, and the call then falls through to the next source or the default.
+* Exceptions thrown by an extractor or supplier propagate to the caller.
+
+[[routing-keys]]
+=== Routing keys
+
+`byArgument` matches parameters by type only, so with several `String` or `UUID` parameters it takes the first one, which may not be the one you mean.
+Mark the right parameter on the interface with `@RoutingKey` and use `byRoutingKey`, which ignores unannotated parameters:
+
+[source,java]
+----
+interface OrderService {
+
+    Order placeOrder(Customer customer, Cart cart);
+
+    List<Order> getOrders(@RoutingKey String customerId);
+
+    Order getOrder(String orderId, @RoutingKey UUID customerId);
+
+}
+
+Function<String, Oms> omsForCustomer = (customerId) -> flags
+    .getBooleanValue("oracle-oms", false, new ImmutableContext(customerId)) ? Oms.ORACLE : Oms.PEOPLESOFT;
+
+RoutingImplementationFinder.builder(OrderService.class)
+    .byArgument(Customer.class, (customer) -> omsForCustomer.apply(customer.id()))
+    .or().byRoutingKey(String.class, omsForCustomer)
+    .or().byRoutingKey(UUID.class, (customerId) -> omsForCustomer.apply(customerId.toString()))
+    .route(Oms.ORACLE, oracleOrderService)
+    .route(Oms.PEOPLESOFT, peopleSoftOrderService)
+    .otherwise(peopleSoftOrderService)
+    .build();
+----
+
+* Annotate the parameter on the routed interface. The router sees the interface's method, so an annotation on the implementation is ignored.
+* For methods with several routing keys, name them: `@RoutingKey("customer")` is matched by `byRoutingKey("customer", UUID.class, ...)`. An unnamed `byRoutingKey(type, ...)` only matches unnamed `@RoutingKey` parameters, so names never collide.
+* `byArgument` is unchanged and still matches by type alone; the two can be chained in any order.
+
+[[conditional-routes]]
+=== Conditional routes and feature flags
+
+A route can pick its implementation at call time, for example from a feature flag.
+Start the route with `route(key)`, add conditions with `and(...)`, and finish it with `orElse(...)`:
+
+[source,java]
+----
+ImplementationFinder<ShipperService> finder = RoutingImplementationFinder.builder(ShipperService.class)
+    .byArgument(Customer.class, Customer::carrier)
+    .route(Carrier.UPS)
+        .and(() -> flags.isEnabled("ups-v2")).to(upsShipperServiceV2)                        // global flag
+        .and(Customer.class, (customer) -> beta.contains(customer.tenantId())).to(upsBeta)  // per tenant
+        .orElse(upsShipperServiceV1)
+    .route(Carrier.FEDEX, fedexShipperService)
+    .otherwise(uspsShipperService)
+    .build();
+----
+
+* Conditions are only checked when the call's key matches the route, in the order they were added, and the first one that holds wins. When none holds, the route's `orElse(...)` implementation is used, never the finder's `otherwise(...)`.
+* `and(BooleanSupplier)` is for conditions that don't depend on the call, such as a global flag.
+* `and(Class, Predicate)` tests the first argument of that type, for example the customer's tenant. It doesn't hold when the call has no such argument, or the argument is `null`.
+* `andRoutingKey(Class, Predicate)` and `andRoutingKey(name, Class, Predicate)` test a parameter marked with `@RoutingKey` (see <<routing-keys>>), for when the type alone is ambiguous. For example, with `getOrders(@RoutingKey String customerId, @RoutingKey("tenant") String tenantId)`:
++
+[source,java]
+----
+.route(Oms.PEOPLESOFT)
+    .andRoutingKey("tenant", String.class, (tenantId) -> flags.isEnabled("oracle-oms", tenantId)).to(oracleOrderService)
+    .orElse(peopleSoftOrderService)
+----
+* Conditions are evaluated on every call, so flipping a flag takes effect on the next call without a restart. If a flag can flip in the middle of a request and every call in it must go the same way, decide once per request (for example, store the variant in the MDC) and route from that.
+* Keep conditions cheap and make them not throw. An exception in a condition fails the call; return `false` when the flag service is unavailable.
+* `route(key, implementation)` is shorthand for a route without conditions.
+
+[[custom-finders]]
+== Custom finders
+
+For any other rule, implement `ImplementationFinder` directly.
+It receives the invoked interface method and its arguments:
+
+[source,java]
+----
+ImplementationFinder<ShipperService> finder = (method, args) ->
+    method.getName().startsWith("track") ? trackingService : shippingService;
+----
+
+== Module path
+
+The module name is `dev.abstraction4j.router.core`.
+Routers are created by `abstraction4j-router-jdk` or `abstraction4j-router-spring`; see their READMEs for what a modular application needs to open.

@@ -26,7 +26,7 @@ import org.springframework.context.annotation.Bean;
 import dev.abstraction4j.router.core.RoutingImplementationFinder;
 import dev.abstraction4j.router.jdk.JdkAbstractionRouters;
 import dev.abstraction4j.router.spring.SpringAbstractionRouters;
-import dev.abstraction4j.router.spring.autoconfigure.AbstractionRouterAutoConfiguration;
+import dev.abstraction4j.router.springboot.autoconfigure.AbstractionRouterAutoConfiguration;
 
 /**
  * Uses a JDK router, a Spring router and an auto-configured router from a named module,

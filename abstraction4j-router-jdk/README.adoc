@@ -1,0 +1,78 @@
+= Abstraction4j Router: JDK
+:icons: font
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+
+Routers built on `java.lang.reflect.Proxy`, for applications that don't use Spring.
+It depends only on `abstraction4j-router-core`, which it brings in.
+
+In a Spring application, use `abstraction4j-router-spring` instead: its routers are regular Spring AOP proxies and can be registered automatically.
+See link:../README.adoc#choosing-modules[Choosing modules].
+
+== Installation
+
+.Maven
+[source,xml]
+----
+<dependency>
+  <groupId>dev.abstraction4j.router</groupId>
+  <artifactId>abstraction4j-router-jdk</artifactId>
+  <version>0.1.0</version>
+</dependency>
+----
+
+.Gradle (Groovy)
+[source,groovy]
+----
+implementation 'dev.abstraction4j.router:abstraction4j-router-jdk:0.1.0'
+----
+
+== Usage
+
+Build a finder (see link:../abstraction4j-router-core/README.adoc[abstraction4j-router-core]) and create the router once, where you wire the rest of your application:
+
+[source,java]
+----
+ImplementationFinder<ShipperService> finder = RoutingImplementationFinder.builder(ShipperService.class)
+    .byArgument(Customer.class, Customer::carrier)
+    .route(Carrier.UPS, new UpsShipperService(upsClient))
+    .route(Carrier.FEDEX, new FedexShipperService(fedexClient))
+    .otherwise(new UspsShipperService(uspsClient))
+    .build();
+
+ShipperService shipperService = JdkAbstractionRouters.routerFor(ShipperService.class, finder);
+
+OrderService orderService = new OrderService(shipperService);   // depends only on ShipperService
+----
+
+The router is thread-safe; create it once and share it.
+
+The proxy class is defined in the interface's class loader.
+If the implementations or the finder live in a class loader that the interface's can't see, pass one explicitly with `routerFor(classLoader, type, finder)`.
+
+JDK routers compare by identity: `equals` is `==` and `hashCode` is the identity hash code.
+The rest of the contract (exceptions, `null` results, `toString`) is in link:../README.adoc#behavior[Behavior].
+
+== Module path
+
+The module name is `dev.abstraction4j.router.jdk`.
+Routing a public interface in an exported package needs nothing extra.
+If the interface is not public, or its package isn't exported, open the package to the router so it can call the implementation:
+
+[source,java]
+----
+module com.example.shipping {
+    requires dev.abstraction4j.router.jdk;
+    opens com.example.shipping to dev.abstraction4j.router.jdk;
+}
+----
+
+== GraalVM native images
+
+A native image can only create a JDK proxy whose interfaces were registered at build time, and the router calls the implementation reflectively.
+Register both for every routed interface, in `proxy-config.json` and `reflect-config.json`, or with a Spring `RuntimeHintsRegistrar` as shown in link:../README.adoc#native-images[GraalVM native images].

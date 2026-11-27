@@ -1,7 +1,6 @@
 dependencies {
     implementation(project(":abstraction4j-router-jdk"))
-    implementation(project(":abstraction4j-router-spring-autoconfigure"))
-    implementation(libs.spring.boot.starter)
+    implementation(project(":abstraction4j-router-spring-boot-starter"))
 }
 
 // Runs the application from its named module on the module path; it exits non-zero if

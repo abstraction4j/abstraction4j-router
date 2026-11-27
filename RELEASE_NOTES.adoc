@@ -11,8 +11,8 @@ Initial version.
 * `RoutingImplementationFinder`, which routes by a key from one or more sources, tried in order: typed method arguments (`byArgument`, or `byRoutingKey` for parameters marked with `@RoutingKey`) and the current context such as the SLF4J MDC (`byContext`), chained with `or()`, with an optional default implementation. Routes can be conditional (`route(key).and(...).to(...).orElse(...)`, or `andRoutingKey(...)` for `@RoutingKey` parameters), for example on feature flags evaluated at call time.
 * `JdkAbstractionRouters`, routers built on JDK dynamic proxies.
 * `SpringAbstractionRouters`, routers built on Spring AOP.
-* Spring Boot auto-configuration that registers a `@Primary` router for every `ImplementationFinder` bean, controlled by `abstraction4j.router.enabled` (with IDE metadata).
-* `@EnableSpringAbstraction` for Spring applications without Boot, and `@DisableRouter` to exclude a finder.
+* `@EnableSpringAbstraction`, which registers a `@Primary` router for every `ImplementationFinder` bean, and `@DisableRouter` to exclude a finder.
+* Spring Boot auto-configuration that applies `@EnableSpringAbstraction`, controlled by `abstraction4j.router.enabled` (with IDE metadata), and a Spring Boot starter.
 * Spring AOT and GraalVM native image hints for automatically registered routers.
 * Java module descriptors (`module-info`) for every module.
 * A CycloneDX SBOM published with every module.

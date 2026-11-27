@@ -13,7 +13,8 @@ rootProject.name = "abstraction4j-router"
 include("abstraction4j-router-core")
 include("abstraction4j-router-jdk")
 include("abstraction4j-router-spring")
-include("abstraction4j-router-spring-autoconfigure")
+include("abstraction4j-router-spring-boot-autoconfigure")
+include("abstraction4j-router-spring-boot-starter")
 
 include("abstraction4j-router-sample-jdk")
 project(":abstraction4j-router-sample-jdk").projectDir = file("samples/jdk")

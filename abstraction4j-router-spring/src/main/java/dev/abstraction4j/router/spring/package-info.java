@@ -15,7 +15,8 @@
  */
 
 /**
- * Abstraction routers built on Spring AOP.
+ * Abstraction routers built on Spring AOP, and automatic router registration with
+ * {@link dev.abstraction4j.router.spring.EnableSpringAbstraction}.
  */
 @NullMarked
 package dev.abstraction4j.router.spring;

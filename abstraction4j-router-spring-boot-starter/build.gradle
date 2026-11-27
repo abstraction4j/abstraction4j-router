@@ -1,0 +1,7 @@
+// Starter with no code of its own: one dependency that brings in the auto-configuration
+// and Spring Boot.
+
+dependencies {
+    api(project(":abstraction4j-router-spring-boot-autoconfigure"))
+    api(libs.spring.boot.starter)
+}
