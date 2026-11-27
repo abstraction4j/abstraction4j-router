@@ -15,7 +15,8 @@
  */
 
 /**
- * Abstraction4j routers built on Spring AOP.
+ * Abstraction4j routers built on Spring AOP, and automatic router registration with
+ * {@code @EnableSpringAbstraction}.
  */
 @SuppressWarnings("requires-transitive-automatic")
 module dev.abstraction4j.router.spring {
@@ -23,10 +24,18 @@ module dev.abstraction4j.router.spring {
 	requires transitive dev.abstraction4j.router.core;
 	// Routers implement Spring AOP's SpringProxy and Advised, so callers must read spring.aop.
 	requires transitive spring.aop;
+	requires spring.beans;
 	requires spring.core;
 
+	// Only needed for @EnableSpringAbstraction, which is used from an application context.
+	requires static spring.context;
+	// Spring AOT code generation; only used at build time.
+	requires static java.compiler;
 	requires static org.jspecify;
 
 	exports dev.abstraction4j.router.spring;
+
+	// Spring instantiates the package-private registrar and post-processor reflectively.
+	opens dev.abstraction4j.router.spring to spring.beans, spring.context, spring.core;
 
 }

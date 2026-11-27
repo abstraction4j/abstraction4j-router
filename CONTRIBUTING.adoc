@@ -100,10 +100,13 @@ To test against other Spring versions, override them on the command line, as the
 |Router built on `java.lang.reflect.Proxy`. Depends only on `core`.
 
 |`abstraction4j-router-spring`
-|Router built on Spring AOP. Spring is a `compileOnly` dependency.
+|Router built on Spring AOP, plus `@EnableSpringAbstraction` and the automatic registration behind it. Spring is a `compileOnly` dependency.
 
-|`abstraction4j-router-spring-autoconfigure`
-|Spring Boot auto-configuration and `@EnableSpringAbstraction`, in `dev.abstraction4j.router.spring.autoconfigure`.
+|`abstraction4j-router-spring-boot-autoconfigure`
+|Spring Boot auto-configuration, in `dev.abstraction4j.router.springboot.autoconfigure`. Applies `@EnableSpringAbstraction`; keep Spring-only logic in `abstraction4j-router-spring`.
+
+|`abstraction4j-router-spring-boot-starter`
+|Spring Boot starter with no code: depends on the auto-configuration and `spring-boot-starter`.
 
 |`samples/jdk`, `samples/spring-boot`
 |Runnable samples (`abstraction4j-router-sample-*`). Built, formatted and checked like the library, but never published. Keep them working when the API changes.
@@ -120,14 +123,20 @@ To test against other Spring versions, override them on the command line, as the
 
 Dependency versions live in link:gradle/libs.versions.toml[gradle/libs.versions.toml].
 The Spring modules target Spring Framework 7 and Spring Boot 4.
-Framework dependencies should be `compileOnly` so the library doesn't dictate versions to applications.
+Framework dependencies should be `compileOnly` so the library doesn't dictate versions to applications; the starter is the only module that depends on Spring Boot directly.
 
 === Public API
 
-Each module exposes as little as possible: `ImplementationFinder`, `RoutingImplementationFinder` and `@RoutingKey` in `core`, `JdkAbstractionRouters` in `jdk`, `SpringAbstractionRouters` in `spring`, and `AbstractionRouterAutoConfiguration`, `@EnableSpringAbstraction` and `@DisableRouter` in `spring-autoconfigure`.
+Each module exposes as little as possible: `ImplementationFinder`, `RoutingImplementationFinder` and `@RoutingKey` in `core`, `JdkAbstractionRouters` in `jdk`, `SpringAbstractionRouters`, `@EnableSpringAbstraction` and `@DisableRouter` in `spring`, and `AbstractionRouterAutoConfiguration` in `spring-boot-autoconfigure`.
 Everything else (handlers, registrars, post-processors) is package-private.
 Keep new types package-private unless users need them, because every public type is a compatibility commitment.
 Behavior changes must be reflected in the _Behavior_ section of link:README.adoc[README.adoc].
+
+=== Documentation
+
+The root link:README.adoc[README.adoc] explains the library as a whole: why it exists, how it works, which module to choose and why, and the behavior shared by every router.
+Each published module has its own `README.adoc` with its Maven and Gradle (Groovy) coordinates, setup and details.
+When you change a module, update its README; when you add a module, give it a README and add it to _Choosing modules_ in the root README.
 
 IMPORTANT: Each module must use its own packages.
 Two modules must never share a package (for example, `dev.abstraction4j.router.spring`), because split packages break the Java module system.

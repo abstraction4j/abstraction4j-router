@@ -1,0 +1,74 @@
+= Abstraction4j Router: Spring Boot Starter
+:icons: font
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+
+The one dependency a Spring Boot application needs.
+It contains no code; it brings in:
+
+* `abstraction4j-router-spring-boot-autoconfigure`, which registers a router for every `ImplementationFinder` bean,
+* `abstraction4j-router-spring` and `abstraction4j-router-core`, which it builds on,
+* `spring-boot-starter`, like every Spring Boot starter.
+
+== Installation
+
+.Maven
+[source,xml]
+----
+<dependency>
+  <groupId>dev.abstraction4j.router</groupId>
+  <artifactId>abstraction4j-router-spring-boot-starter</artifactId>
+  <version>0.1.0</version>
+</dependency>
+----
+
+.Gradle (Groovy)
+[source,groovy]
+----
+implementation 'dev.abstraction4j.router:abstraction4j-router-spring-boot-starter:0.1.0'
+----
+
+The starter is built against a recent Spring Boot 4 release and works with Spring Boot 4.0 or later.
+With Spring Boot's dependency management (the `spring-boot-starter-parent` POM, the `spring-boot-dependencies` BOM, or the Spring Boot Gradle plugin with `io.spring.dependency-management`), your application's Spring Boot version is used.
+
+== Usage
+
+Declare a finder as a bean and inject the interface:
+
+[source,java]
+----
+@Configuration
+class ShippingConfiguration {
+
+  @Bean
+  RoutingImplementationFinder<ShipperService> shipperServiceFinder(UpsShipperService ups,
+      FedexShipperService fedex, UspsShipperService usps) {
+    return RoutingImplementationFinder.builder(ShipperService.class)
+        .byArgument(Customer.class, Customer::carrier)
+        .route(Carrier.UPS, ups)
+        .route(Carrier.FEDEX, fedex)
+        .otherwise(usps)
+        .build();
+  }
+}
+
+@Service
+class OrderService {
+
+  private final ShipperService shipperService; // receives the router
+
+  OrderService(ShipperService shipperService) {
+    this.shipperService = shipperService;
+  }
+}
+----
+
+* Configuration and native image support: link:../abstraction4j-router-spring-boot-autoconfigure/README.adoc[abstraction4j-router-spring-boot-autoconfigure].
+* How routers are registered, and the rules finders must follow: link:../abstraction4j-router-spring/README.adoc#automatic-registration[abstraction4j-router-spring].
+* Writing finders: link:../abstraction4j-router-core/README.adoc[abstraction4j-router-core].
+* A complete application: link:../samples/spring-boot[samples/spring-boot].

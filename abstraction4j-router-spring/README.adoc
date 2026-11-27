@@ -1,0 +1,163 @@
+= Abstraction4j Router: Spring
+:icons: font
+:toc: macro
+:toclevels: 2
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+
+Routers built on Spring AOP, for Spring Framework applications.
+You can register each router yourself with `SpringAbstractionRouters`, or let `@EnableSpringAbstraction` register one for every finder bean.
+
+Spring Boot applications don't need to use this module directly: add `abstraction4j-router-spring-boot-starter`, which builds on it and turns automatic registration on for you.
+See link:../README.adoc#choosing-modules[Choosing modules].
+
+toc::[]
+
+== Installation
+
+.Maven
+[source,xml]
+----
+<dependency>
+  <groupId>dev.abstraction4j.router</groupId>
+  <artifactId>abstraction4j-router-spring</artifactId>
+  <version>0.1.0</version>
+</dependency>
+----
+
+.Gradle (Groovy)
+[source,groovy]
+----
+implementation 'dev.abstraction4j.router:abstraction4j-router-spring:0.1.0'
+----
+
+This brings in `abstraction4j-router-core`, but not Spring.
+Your application provides Spring Framework 7.0.1 or later (`spring-context`, which a Spring application already has), so the library never changes the Spring version you run on.
+
+== Why a Spring router
+
+A Spring router is a regular Spring AOP proxy: Spring tools such as `AopUtils` recognize it, it can be registered automatically, and Spring AOT generates the hints a GraalVM native image needs.
+It costs a few tens of nanoseconds more per call than a JDK router (see link:../README.adoc#performance-and-caching[Performance and caching]).
+
+[[automatic-registration]]
+== Automatic registration
+
+Add `@EnableSpringAbstraction` to a configuration class and declare your finders as beans:
+
+[source,java]
+----
+@Configuration
+@EnableSpringAbstraction
+class ShippingConfiguration {
+
+  @Bean
+  RoutingImplementationFinder<ShipperService> shipperServiceFinder(UpsShipperService ups,
+      FedexShipperService fedex, UspsShipperService usps) {
+    return RoutingImplementationFinder.builder(ShipperService.class)
+        .byArgument(Customer.class, Customer::carrier)
+        .route(Carrier.UPS, ups)
+        .route(Carrier.FEDEX, fedex)
+        .otherwise(usps)
+        .build();
+  }
+}
+
+@Service
+class OrderService {
+
+  private final ShipperService shipperService; // receives the router
+
+  OrderService(ShipperService shipperService) {
+    this.shipperService = shipperService;
+  }
+}
+----
+
+For each `ImplementationFinder<T>` bean whose `T` is an interface, a router bean named `<finderBeanName>Router` is registered as `@Primary`, so plain `T` injection points receive the router instead of one of the implementations.
+Finders declared as classes and in `@Bean` methods, including component-scanned configuration, are both detected.
+
+In Spring Boot, the auto-configuration in `abstraction4j-router-spring-boot-autoconfigure` applies `@EnableSpringAbstraction` for you.
+Using both is harmless.
+
+=== Rules for finders
+
+These apply whether registration is turned on by `@EnableSpringAbstraction` or by the Spring Boot auto-configuration.
+
+[IMPORTANT]
+.Inject implementations into a finder by concrete type or qualifier
+====
+Because the router is `@Primary`, a finder that asks for an unqualified `ShipperService` is handed the router, and the router depends on the finder, so the context fails with a circular reference.
+Inject the implementations by their concrete types (as above) or use `@Qualifier`:
+
+[source,java]
+----
+@Bean
+ImplementationFinder<ShipperService> shipperServiceFinder(
+    @Qualifier("ups") ShipperService ups,
+    @Qualifier("fedex") ShipperService fedex) {
+  return (method, args) -> "fedex".equals(args[0]) ? fedex : ups;
+}
+----
+====
+
+[NOTE]
+A `@Bean` method must declare the generic return type (`ImplementationFinder<ShipperService>` or `RoutingImplementationFinder<ShipperService>`, not a raw type) so the routed interface can be determined.
+
+=== Excluding a finder
+
+Annotate a finder class, or the `@Bean` method that declares it, with `@DisableRouter` to keep it from getting a router, for example when you register that router yourself:
+
+[source,java]
+----
+@Bean
+@DisableRouter
+ImplementationFinder<ShipperService> legacyShipperServiceFinder() {
+  ...
+}
+----
+
+== Manual registration
+
+To control the router bean yourself (its name, qualifiers, or whether it's primary), create it in a `@Bean` method:
+
+[source,java]
+----
+@Configuration
+class ShippingConfiguration {
+
+  @Bean
+  @Primary
+  ShipperService shipperService(ImplementationFinder<ShipperService> shipperServiceFinder) {
+    return SpringAbstractionRouters.routerFor(ShipperService.class, shipperServiceFinder);
+  }
+}
+----
+
+If automatic registration is also on, mark that finder with `@DisableRouter` so it doesn't get a second router.
+
+Spring routers follow Spring AOP's proxy equality.
+The rest of the contract is in link:../README.adoc#behavior[Behavior].
+
+== Module path
+
+The module name is `dev.abstraction4j.router.spring`.
+Routing a public interface in an exported package needs nothing extra.
+If the interface is not public, or its package isn't exported, open the package to Spring so the router can call the implementation:
+
+[source,java]
+----
+module com.example.shipping {
+    requires dev.abstraction4j.router.spring;
+    opens com.example.shipping to spring.core;
+}
+----
+
+== GraalVM native images
+
+Automatically registered routers need nothing extra: during Spring AOT processing each one contributes its proxy and reflection hints.
+Routers you create with `SpringAbstractionRouters.routerFor` need hints of their own; see link:../README.adoc#native-images[GraalVM native images].

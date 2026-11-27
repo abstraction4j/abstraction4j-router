@@ -20,7 +20,7 @@
 module dev.abstraction4j.router.it.modulepath {
 
 	requires dev.abstraction4j.router.jdk;
-	requires dev.abstraction4j.router.spring.autoconfigure;
+	requires dev.abstraction4j.router.springboot.autoconfigure;
 	requires spring.boot;
 
 	requires static org.jspecify;

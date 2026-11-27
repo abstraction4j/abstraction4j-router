@@ -1,0 +1,11 @@
+dependencies {
+    api(project(":abstraction4j-router-core"))
+    api(project(":abstraction4j-router-spring"))
+
+    compileOnly(libs.spring.context)
+    compileOnly(libs.spring.boot.autoconfigure)
+
+    testImplementation(libs.spring.context)
+    testImplementation(libs.spring.boot.autoconfigure)
+    testImplementation(libs.spring.boot.test)
+}

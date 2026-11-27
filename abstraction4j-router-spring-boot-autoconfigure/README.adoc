@@ -1,0 +1,64 @@
+= Abstraction4j Router: Spring Boot Auto-configuration
+:icons: font
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+
+Spring Boot auto-configuration that registers a `@Primary` router bean for every `ImplementationFinder` bean, with no annotations needed.
+
+Most applications should add link:../abstraction4j-router-spring-boot-starter/README.adoc[abstraction4j-router-spring-boot-starter] instead, which brings this module and Spring Boot in one dependency.
+Depend on this module directly when you don't want a starter to add `spring-boot-starter` to your build, for example in your own starter or in a module that only configures beans.
+
+== Installation
+
+.Maven
+[source,xml]
+----
+<dependency>
+  <groupId>dev.abstraction4j.router</groupId>
+  <artifactId>abstraction4j-router-spring-boot-autoconfigure</artifactId>
+  <version>0.1.0</version>
+</dependency>
+----
+
+.Gradle (Groovy)
+[source,groovy]
+----
+implementation 'dev.abstraction4j.router:abstraction4j-router-spring-boot-autoconfigure:0.1.0'
+----
+
+This brings in `abstraction4j-router-spring` and `abstraction4j-router-core`, but not Spring Boot.
+Your application provides Spring Boot 4.0 or later.
+
+== What it does
+
+`AbstractionRouterAutoConfiguration` is registered in `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` and applies `@EnableSpringAbstraction` from `abstraction4j-router-spring`.
+Declare a finder as a bean and inject the interface; the router is registered for you.
+
+How routers are named and detected, the rules finders must follow, and how to exclude a finder with `@DisableRouter` are described in link:../abstraction4j-router-spring/README.adoc#automatic-registration[abstraction4j-router-spring].
+
+== Configuration
+
+[cols="2,1,3",options="header"]
+|===
+|Property |Default |Description
+
+|`abstraction4j.router.enabled`
+|`true`
+|Whether to register a router bean for every `ImplementationFinder` bean.
+|===
+
+The property is described in `META-INF/spring-configuration-metadata.json`, so IDEs complete and document it.
+
+== GraalVM native images
+
+Routers registered by the auto-configuration work in native images without extra configuration.
+During Spring AOT processing each router contributes its proxy and reflection hints, and its bean definition is generated next to the routed interface, so non-public interfaces work too.
+
+== Module path
+
+The module name is `dev.abstraction4j.router.springboot.autoconfigure`.
