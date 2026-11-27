@@ -1,0 +1,41 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+plugins {
+    alias(libs.plugins.kotlin.jvm)
+}
+
+// Kotlin callers and finders using the JDK router, a Spring router created by hand and
+// one registered by the Spring Boot starter. Part of `check`.
+dependencies {
+    testImplementation(project(":abstraction4j-router-jdk"))
+    testImplementation(project(":abstraction4j-router-spring-boot-starter"))
+    testImplementation(libs.kotlin.reflect)
+    testImplementation(libs.kotlinx.coroutines.core)
+    testImplementation(libs.kotlinx.coroutines.reactor)
+    testImplementation(libs.kotlinx.coroutines.slf4j)
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_21
+    }
+}
+
+tasks.named("test", Test) {
+    systemProperty "expectCoroutinesReactor", "true"
+}
+
+// Spring AOP runs suspend functions through Reactor when kotlinx-coroutines-reactor is
+// present, and invokes them directly otherwise. `test` covers the first path, this task
+// the second.
+def testWithoutCoroutinesReactor = tasks.register("testWithoutCoroutinesReactor", Test) {
+    description = "Runs the tests without kotlinx-coroutines-reactor on the classpath."
+    group = "verification"
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath.filter { !it.name.startsWith("kotlinx-coroutines-reactor") }
+    systemProperty "expectCoroutinesReactor", "false"
+}
+
+tasks.named("check") {
+    dependsOn(testWithoutCoroutinesReactor)
+}

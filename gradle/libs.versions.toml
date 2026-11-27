@@ -2,12 +2,15 @@
 spring = "7.0.10"
 spring-boot = "4.1.2"
 jmh = "1.37"
+kotlin = "2.4.21"
+kotlinx-coroutines = "1.11.0"
 
 [plugins]
 nexus-publish = { id = "io.github.gradle-nexus.publish-plugin", version = "2.0.0" }
 spring-javaformat = { id = "io.spring.javaformat", version = "0.0.48" }
 cyclonedx = { id = "org.cyclonedx.bom", version = "3.5.1" }
 graalvm-native = { id = "org.graalvm.buildtools.native", version = "1.1.18" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 japicmp = { id = "me.champeau.gradle.japicmp", version = "0.4.6" }
 sonarqube = { id = "org.sonarqube", version = "7.5.0.8588" }
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
@@ -20,6 +23,12 @@ spring-javaformat-checkstyle = { module = "io.spring.javaformat:spring-javaforma
 # Benchmarks
 jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
 jmh-generator-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
+
+# Kotlin integration tests
+kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-reactor = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-reactor", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-slf4j = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-slf4j", version.ref = "kotlinx-coroutines" }
 
 # Nullability annotations
 jspecify = { module = "org.jspecify:jspecify", version = "1.0.1" }

@@ -283,6 +283,7 @@ This includes default interface methods; the implementation's override, or the d
 
 Arguments::
 The finder always receives a non-`null` argument array; it is empty for methods without parameters.
+Elements are `null` where the caller passed `null`, and for a Kotlin `suspend` function the last element is its `Continuation`.
 
 No implementation::
 If the finder returns `null`, the call fails with an `IllegalStateException` whose message names the method.
@@ -344,7 +345,7 @@ RoutingImplementationFinder.builder(ShipperService.class)
 * Only interfaces can be routed.
 * The router only intercepts calls made through it. When an implementation calls one of its own methods, the call goes straight to `this`.
 * The finder runs on every invocation; see <<performance-and-caching>> if it's expensive.
-* Reactive return types (Reactor, RxJava) are untested.
+* Reactor and RxJava return types are untested. Kotlin `suspend` functions and `Flow` are tested; see <<kotlin>>.
 
 == Java modules
 
@@ -408,6 +409,40 @@ class RouterHints implements RuntimeHintsRegistrar {
 
 Register it with `@ImportRuntimeHints(RouterHints.class)` on a configuration class.
 Without Spring, pass the same interfaces to GraalVM's `proxy-config.json` and `reflect-config.json`.
+
+[[kotlin]]
+== Kotlin and coroutines
+
+Routers work from Kotlin, including `suspend` functions and functions that return a `Flow`:
+
+[source,kotlin]
+----
+interface ShipperService {
+    suspend fun ship(@RoutingKey carrier: String, parcel: String): String
+    fun track(@RoutingKey carrier: String, parcel: String): Flow<String>
+}
+
+val finder = RoutingImplementationFinder.builder(ShipperService::class.java)
+    .byRoutingKey(String::class.java) { carrier -> carrier }
+    .route("ups", upsShipperService)
+    .otherwise(uspsShipperService)
+    .build()
+----
+
+* A `suspend` function is routed like any other method. The finder runs when the call starts, on the calling thread, before anything suspends; the implementation then suspends, resumes, returns and throws exactly as if it had been called directly.
+* Spring routers use Spring AOP's coroutine support. With `kotlinx-coroutines-reactor` on the classpath, Spring runs suspend functions through Reactor, which also needs `kotlin-reflect`; without it, Spring invokes them directly. Both behave the same.
+* `byArgument`, `byRoutingKey` and `@RoutingKey` work on Kotlin parameters as they do in Java. A finder that reads `args` itself gets an `Array<Any?>`: an element is `null` wherever the caller passed `null`, and a `suspend` function's last element is its `Continuation`.
+* `byContext` reads thread-bound context on the thread that calls the router, and coroutines move between threads. Carry the SLF4J MDC along with `MDCContext()` from `kotlinx-coroutines-slf4j`:
++
+[source,kotlin]
+----
+MDC.put("carrier", "fedex")
+withContext(Dispatchers.IO + MDCContext()) {
+    shipperService.ship(null, "box")   // routed by the MDC
+}
+----
+
+`./gradlew build` runs `integration-tests/kotlin-coroutines`, which covers the JDK router, a Spring router and one registered by the Spring Boot starter, with and without `kotlinx-coroutines-reactor`.
 
 == Building
 

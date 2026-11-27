@@ -20,9 +20,11 @@ import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 
+import org.aopalliance.intercept.MethodInterceptor;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.aop.ProxyMethodInvocation;
 import org.springframework.aop.framework.Advised;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
@@ -240,6 +242,25 @@ class SpringAbstractionRoutersTests {
 		Counter proxy = SpringAbstractionRouters.routerFor(Counter.class, (method, args) -> {
 			received[0] = args;
 			return counter;
+		});
+
+		int result = proxy.count();
+
+		Assertions.assertThat(result).isEqualTo(42);
+		Assertions.assertThat(received[0]).isNotNull().isEmpty();
+	}
+
+	@Test
+	void argumentsReplacedWithNullByAnotherAdvisor_finderReceivesEmptyArguments() {
+		Counter counter = () -> 42;
+		Object[][] received = new Object[1][];
+		Counter proxy = SpringAbstractionRouters.routerFor(Counter.class, (method, args) -> {
+			received[0] = args;
+			return counter;
+		});
+		((Advised) proxy).addAdvice(0, (MethodInterceptor) (invocation) -> {
+			((ProxyMethodInvocation) invocation).setArguments((Object[]) null);
+			return invocation.proceed();
 		});
 
 		int result = proxy.count();

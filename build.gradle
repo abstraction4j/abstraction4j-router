@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.cyclonedx) apply false
     alias(libs.plugins.graalvm.native) apply false
     alias(libs.plugins.japicmp) apply false
+    alias(libs.plugins.kotlin.jvm) apply false
     alias(libs.plugins.sonarqube)
     alias(libs.plugins.spring.boot) apply false
     id("base")

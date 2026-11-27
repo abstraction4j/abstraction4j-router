@@ -115,7 +115,7 @@ public final class RoutingImplementationFinder<T> implements ImplementationFinde
 	}
 
 	@Override
-	public @Nullable T findImplementation(Method method, Object[] args) {
+	public @Nullable T findImplementation(Method method, @Nullable Object[] args) {
 		for (KeySource keySource : this.keySources) {
 			Object key = keySource.key(method, args);
 			if (key != null) {
@@ -562,7 +562,7 @@ public final class RoutingImplementationFinder<T> implements ImplementationFinde
 			this.fallback = fallback;
 		}
 
-		T implementation(Method method, Object[] args) {
+		T implementation(Method method, @Nullable Object[] args) {
 			for (int i = 0; i < this.conditions.size(); i++) {
 				if (this.conditions.get(i).test(method, args)) {
 					return this.implementations.get(i);
@@ -578,7 +578,7 @@ public final class RoutingImplementationFinder<T> implements ImplementationFinde
 	 */
 	private interface Condition {
 
-		boolean test(Method method, Object[] args);
+		boolean test(Method method, @Nullable Object[] args);
 
 	}
 
@@ -594,7 +594,7 @@ public final class RoutingImplementationFinder<T> implements ImplementationFinde
 		}
 
 		@Override
-		public boolean test(Method method, Object[] args) {
+		public boolean test(Method method, @Nullable Object[] args) {
 			return this.condition.getAsBoolean();
 		}
 
@@ -615,7 +615,7 @@ public final class RoutingImplementationFinder<T> implements ImplementationFinde
 		}
 
 		@Override
-		public boolean test(Method method, Object[] args) {
+		public boolean test(Method method, @Nullable Object[] args) {
 			Object argument = this.locator.find(method, args);
 			return argument != null && this.condition.test(argument);
 		}
@@ -627,7 +627,7 @@ public final class RoutingImplementationFinder<T> implements ImplementationFinde
 	 */
 	private interface KeySource {
 
-		@Nullable Object key(Method method, Object[] args);
+		@Nullable Object key(Method method, @Nullable Object[] args);
 
 	}
 
@@ -646,7 +646,7 @@ public final class RoutingImplementationFinder<T> implements ImplementationFinde
 		}
 
 		@Override
-		public @Nullable Object key(Method method, Object[] args) {
+		public @Nullable Object key(Method method, @Nullable Object[] args) {
 			Object argument = this.locator.find(method, args);
 			return (argument != null) ? this.keyExtractor.apply(argument) : null;
 		}
@@ -670,7 +670,7 @@ public final class RoutingImplementationFinder<T> implements ImplementationFinde
 		}
 
 		@Override
-		public @Nullable Object key(Method method, Object[] args) {
+		public @Nullable Object key(Method method, @Nullable Object[] args) {
 			return this.keySupplier.get();
 		}
 
@@ -710,7 +710,7 @@ public final class RoutingImplementationFinder<T> implements ImplementationFinde
 			return new ArgumentLocator(argumentType, name);
 		}
 
-		@Nullable Object find(Method method, Object[] args) {
+		@Nullable Object find(Method method, @Nullable Object[] args) {
 			int index = this.argumentIndexCache.computeIfAbsent(method, this::findArgumentIndex);
 			return (index != NO_ARGUMENT) ? args[index] : null;
 		}
