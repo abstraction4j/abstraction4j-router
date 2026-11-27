@@ -1,0 +1,15 @@
+plugins {
+    alias(libs.plugins.kotlin.jvm)
+}
+
+dependencies {
+    implementation(project(":abstraction4j-router-spring-boot-starter"))
+    implementation(libs.kotlin.reflect)
+    implementation(libs.kotlinx.coroutines.core)
+
+    testImplementation(libs.spring.boot.test)
+}
+
+application {
+    mainClass = "dev.abstraction4j.router.samples.coroutines.KotlinCoroutinesSampleApplicationKt"
+}

@@ -39,6 +39,12 @@ Add it on its own when code only _defines_ finders or routed interfaces and shou
 implementation 'dev.abstraction4j.router:abstraction4j-router-core:0.1.0'
 ----
 
+.Gradle (Kotlin)
+[source,kotlin]
+----
+implementation("dev.abstraction4j.router:abstraction4j-router-core:0.1.0")
+----
+
 == ImplementationFinder
 
 A finder answers one question for every call made through a router: which implementation should handle it?

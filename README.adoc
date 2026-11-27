@@ -193,6 +193,12 @@ For the other setups, follow the module links in <<choosing-modules>>.
 ----
 implementation 'dev.abstraction4j.router:abstraction4j-router-spring-boot-starter:0.1.0'
 ----
++
+.Gradle (Kotlin)
+[source,kotlin]
+----
+implementation("dev.abstraction4j.router:abstraction4j-router-spring-boot-starter:0.1.0")
+----
 
 . Declare the finder as a bean.
 Inject the implementations by their concrete types, not as `ShipperService`, which would be the router itself:
@@ -248,8 +254,8 @@ Their public API is the types named in each module's README; everything else is 
 
 == Samples
 
-Two runnable samples live in link:samples[samples].
-Both use the shipping example from this README: customers who use different carriers place orders through an `OrderService` that only knows about `ShipperService`.
+Four runnable samples live in link:samples[samples].
+All of them use the shipping example from this README: customers who use different carriers place orders through an `OrderService` that only knows about `ShipperService`.
 
 [cols="1,2,2",options="header"]
 |===
@@ -262,9 +268,17 @@ Both use the shipping example from this README: customers who use different carr
 |link:samples/spring-boot[samples/spring-boot]
 |Spring Boot with the starter: declares the finder as a `@Bean`; the auto-configuration registers the router and `OrderService` receives it by constructor injection.
 |`./gradlew :abstraction4j-router-sample-spring-boot:run`
+
+|link:samples/kotlin[samples/kotlin]
+|The plain Java sample in Kotlin: a finder built from Kotlin and a router from `JdkAbstractionRouters`.
+|`./gradlew :abstraction4j-router-sample-kotlin:run`
+
+|link:samples/kotlin-coroutines[samples/kotlin-coroutines]
+|Spring Boot with the starter and coroutines: `suspend` and `Flow` methods, orders placed concurrently, and a carrier looked up by a suspend function before the call and routed through the coroutine context (see <<kotlin>>).
+|`./gradlew :abstraction4j-router-sample-kotlin-coroutines:run`
 |===
 
-Both print:
+The first three print the lines below; the coroutines sample also ships for a customer whose carrier is looked up, and tracks a parcel:
 
 ----
 UPS is shipping 2 boxes for Alice
@@ -441,6 +455,8 @@ withContext(Dispatchers.IO + MDCContext()) {
     shipperService.ship(null, "box")   // routed by the MDC
 }
 ----
+
+The finder can't suspend, so a key that needs a suspending lookup (a remote service, a database) is resolved _before_ the call and passed in as an argument or through the coroutine context, as link:samples/kotlin-coroutines[samples/kotlin-coroutines] does with a `ThreadLocal` and `asContextElement`.
 
 `./gradlew build` runs `integration-tests/kotlin-coroutines`, which covers the JDK router, a Spring router and one registered by the Spring Boot starter, with and without `kotlinx-coroutines-reactor`.
 

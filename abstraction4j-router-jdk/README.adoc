@@ -32,6 +32,12 @@ See link:../README.adoc#choosing-modules[Choosing modules].
 implementation 'dev.abstraction4j.router:abstraction4j-router-jdk:0.1.0'
 ----
 
+.Gradle (Kotlin)
+[source,kotlin]
+----
+implementation("dev.abstraction4j.router:abstraction4j-router-jdk:0.1.0")
+----
+
 == Usage
 
 Build a finder (see link:../abstraction4j-router-core/README.adoc[abstraction4j-router-core]) and create the router once, where you wire the rest of your application:

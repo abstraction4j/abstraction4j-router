@@ -77,6 +77,15 @@ subprojects {
         targetCompatibility = JavaVersion.VERSION_21
     }
 
+    // Kotlin samples and tests compile for the same JVM as the Java code.
+    plugins.withId("org.jetbrains.kotlin.jvm") {
+        kotlin {
+            compilerOptions {
+                jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21
+            }
+        }
+    }
+
     checkstyle {
         configDirectory = rootProject.file("src/config/checkstyle")
         maxWarnings = 0

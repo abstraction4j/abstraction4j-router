@@ -17,5 +17,5 @@ Initial version.
 * Kotlin support: `suspend` functions and `Flow` work through every router, and finders see nullable arguments (`Array<Any?>`).
 * Java module descriptors (`module-info`) for every module.
 * A CycloneDX SBOM published with every module.
-* Plain Java and Spring Boot samples, and JMH benchmarks.
+* Plain Java, Spring Boot, Kotlin and Kotlin coroutines samples, and JMH benchmarks.
 * Supports Java 21+, Spring Framework 7.0.1+ and Spring Boot 4.0+.
