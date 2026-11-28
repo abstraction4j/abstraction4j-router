@@ -49,34 +49,35 @@ This helps coordinate work, avoids duplicated effort, and makes it more likely t
 
 We use https://docs.github.com/en/get-started/using-github/github-flow[GitHub Flow].
 
-. Fork the repository and create a branch from `main`, named as described in <<Naming branches and pull requests>>.
+. Fork the repository and create a branch from `main`, named as described in <<Naming branches, commits and pull requests>>.
 . Make your change, with tests (see <<Tests>>).
 . Run `./gradlew format`, then `./gradlew build`, and make sure it passes.
 . Keep public APIs backward compatible where possible, and document public classes and methods with Javadoc.
 . Follow the <<Code style>>.
-. Use the commit message format `Issue #123: Short description of the change`.
+. Write commit messages in the same format as pull request titles, for example `fix/#123 Short description of the change`.
 . Open the pull request and take part in the code review.
 . If you changed public API or behavior, update link:README.adoc[README.adoc] in the same pull request.
 
-=== Naming branches and pull requests
+=== Naming branches, commits and pull requests
 
-Every pull request starts from an issue, and its branch and title say what kind of change it is.
+Every pull request starts from an issue, and its branch, commits and title say what kind of change it is and which issue it belongs to.
 
-Branches are named `<type>/<issue>_<short_description>`, in lowercase, with words separated by underscores:
-
-[source,text]
-----
-feat/15_versioned_docs_site
-fix/42_null_routing_key
-docs/51_spring_boot_readme
-----
-
-Pull request titles are `<type>: Short description of the change`, in the imperative mood and without a trailing period.
-Reference the issue in the description with `Closes #123`, so merging the pull request closes it.
+Branches are named `<type>/#<issue>_<short_description>`, in lowercase, with words separated by underscores:
 
 [source,text]
 ----
-feat: Add a versioned documentation site
+feat/#15_versioned_docs_site
+fix/#42_null_routing_key
+docs/#51_spring_boot_readme
+----
+
+Commit messages and pull request titles are `<type>/#<issue> Short description of the change`, in plain English, in the imperative mood and without a trailing period.
+Pull requests are squash-merged with their title as the commit message, so the title is what ends up in the history of `main`.
+Reference the issue in the pull request description with `Closes #123`, so merging the pull request closes it.
+
+[source,text]
+----
+feat/#15 Add a versioned documentation site
 ----
 
 Use one of these types:
